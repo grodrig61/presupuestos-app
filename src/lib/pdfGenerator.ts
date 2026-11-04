@@ -72,9 +72,9 @@ export const descargarPDF = async (
                 const logoImage = await pdfDoc.embedPng(logoArrayBuffer)
 
                 // --- CORRECCIÓN CRÍTICA DE TAMAÑO ---
-                // Limitamos el logo a un máximo de 65x65 puntos para que no tape el texto.
+                // Limitamos el logo a un máximo de 65x65 puntos.
                 const maxLogoSize = 65
-                const originalDims = logoImage.scale(1) // Tamaño original
+                const originalDims = logoImage.scale(1)
                 const scaleFactor = Math.min(
                     maxLogoSize / originalDims.width,
                     maxLogoSize / originalDims.height
@@ -139,15 +139,14 @@ export const descargarPDF = async (
     })
 
     // ==========================================================================
-    // 3. DATOS DEL PROFESIONAL
+    // 3. DATOS DEL PROFESIONAL (Subidos y compactados)
     // ==========================================================================
 
-    // Nombre de la empresa (con un texto por defecto si está vacío)
-    // Lo bajamos a y - 105 para que no choque con el logo de 65px.
+    // Nombre de la empresa. Lo subimos a y - 85.
     const nombreEmpresa = perfilData.nombre || 'Profesional Independiente'
     page.drawText(nombreEmpresa, {
         x: marginLeft,
-        y: y - 105,
+        y: y - 85,
         size: 14,
         font: fontBold
     })
@@ -155,7 +154,7 @@ export const descargarPDF = async (
     // CUIT y Teléfono
     page.drawText(`CUIT: ${perfilData.cuit || '-'} | Tel: ${perfilData.telefono || '-'}`, {
         x: marginLeft,
-        y: y - 120,
+        y: y - 100,
         size: 9,
         font: font,
         color: rgb(0.4, 0.4, 0.4)
@@ -165,7 +164,7 @@ export const descargarPDF = async (
     if (perfilData.matricula) {
         page.drawText(`Matrícula: ${perfilData.matricula}`, {
             x: marginLeft,
-            y: y - 132,
+            y: y - 112,
             size: 9,
             font: font,
             color: rgb(0.4, 0.4, 0.4)
@@ -173,7 +172,7 @@ export const descargarPDF = async (
     }
 
     // Línea divisoria horizontal
-    y -= 155
+    y -= 135
     page.drawLine({
         start: { x: marginLeft, y: y },
         end: { x: marginRight, y: y },
