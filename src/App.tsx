@@ -15,14 +15,11 @@ function App() {
   // ==========================================================================
   // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
-
-  // --- Autenticación ---
   const [session, setSession] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
-  // --- Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
@@ -31,7 +28,6 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
-  // --- Datos y Navegación ---
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
@@ -40,8 +36,7 @@ function App() {
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
 
-  // --- Formulario del Presupuesto ---
-  const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
+  const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
@@ -50,9 +45,9 @@ function App() {
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // --- Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
+
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
@@ -61,13 +56,11 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // --- Estados para los Popovers (Menús flotantes) ---
   const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
   const [menuFiltroAbierto, setMenuFiltroAbierto] = useState<string | null>(null)
 
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-  // Efectos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -75,7 +68,6 @@ function App() {
     }
   }, [toastExito])
 
-  // Cerrar menús al hacer clic afuera
   useEffect(() => {
     const cerrarMenus = () => {
       setMenuEstadoAbierto(null)
@@ -85,7 +77,6 @@ function App() {
     return () => document.removeEventListener('click', cerrarMenus)
   }, [])
 
-  // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -153,19 +144,14 @@ function App() {
           const fileName = `${currentSession.user.id}-${Date.now()}.${fileExt}`
           const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, logoFile)
           if (!uploadError) {
-            const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
+            const { data } = await supabase.storage.from('logos').getPublicUrl(fileName)
             logoUrl = data.publicUrl
           }
         } catch (imgError) { console.warn("Error Storage:", imgError) }
       }
 
       const { error: dbError } = await supabase.from('perfiles').upsert({
-        id: currentSession.user.id,
-        nombre,
-        cuit,
-        telefono,
-        matricula,
-        logo_url: logoUrl
+        id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl
       })
       if (dbError) throw dbError
 
@@ -319,7 +305,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 5. LÓGICA DEL HISTORIAL, REPORTES Y ACCIONES
+  // 5. LÓGICA DEL HISTORIAL, CRM Y ACCIONES
   // ==========================================================================
 
   const irAHistorial = async () => {
@@ -383,8 +369,19 @@ function App() {
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id)
   }
 
+  // --- FUNCIÓN PARA EL RECORDATORIO DE WHATSAPP (Solo se llamará en celular) ---
+  const enviarRecordatorio = (p: PresupuestoGuardado) => {
+    const telefonoCliente = p.datos_entrada.cliente?.telefono || ''
+    const telefonoLimpio = telefonoCliente.replace(/[^0-9]/g, '')
+    const mensaje = `Hola ${p.cliente_nombre}, ¿cómo estás? Te escribo para consultarte si pudiste revisar el presupuesto que te enviamos hace unos días por el trabajo de ${p.datos_entrada.rubroNombre}. Quedo a disposición por cualquier duda. Saludos!`
+    const url = telefonoLimpio
+      ? `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`
+      : `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+    window.open(url, '_blank')
+  }
+
   // ==========================================================================
-  // 6. MEMORIZACIÓN (Filtros y Ordenamiento)
+  // 6. MEMORIZACIÓN (Filtros, Ordenamiento y Cálculos del CRM)
   // ==========================================================================
 
   const historialFiltrado = useMemo(() => {
@@ -419,6 +416,27 @@ function App() {
     })
     return filtrado
   }, [historial, filtroCliente, filtroCategoria, filtroRubro, filtroEstado, filtroFechaDesde, filtroFechaHasta, ordenHistorial, familias])
+
+  const resumenCRM = useMemo(() => {
+    let pendientes = { cantidad: 0, monto: 0 }
+    let aprobados = { cantidad: 0, monto: 0 }
+    let rechazados = { cantidad: 0, monto: 0 }
+
+    historial.forEach(p => {
+      if (p.estado === 'aprobado') {
+        aprobados.cantidad++
+        aprobados.monto += p.total || 0
+      } else if (p.estado === 'rechazado') {
+        rechazados.cantidad++
+        rechazados.monto += p.total || 0
+      } else {
+        pendientes.cantidad++
+        pendientes.monto += p.total || 0
+      }
+    })
+
+    return { pendientes, aprobados, rechazados }
+  }, [historial])
 
   const rubrosDisponibles = useMemo(() => {
     if (!filtroCategoria) return []
@@ -494,59 +512,50 @@ function App() {
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
-        <UserHeader
-          perfil={perfil}
-          onVerHistorial={irAHistorial}
-          onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
-          onVerReporte={() => { }}
-          onLogout={handleLogout}
-          mostrarBotonVolver={true}
-          onVolver={() => setVistaReporte(false)}
-        />
+        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaReporte(false)} />
         <div className="page-header"><div><h1>Resumen de Gestión</h1><p>Visualizá el rendimiento de tu negocio</p></div></div>
         <ReporteGestion historial={historial} familias={familias} />
       </div>
     )
   }
 
-  // PANTALLA 4: HISTORIAL
+  // PANTALLA 4: HISTORIAL CON MINI-CRM
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
-        {toastExito && (
-          <div className="success-banner">
-            <span>✅ {toastExito}</span>
-            <button onClick={() => setToastExito(null)}>✕</button>
-          </div>
-        )}
+        {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
 
-        <UserHeader
-          perfil={perfil}
-          onVerHistorial={() => { }}
-          onVerPerfil={() => { setVistaPerfil(true); setVistaHistorial(false); }}
-          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); if (historial.length === 0) irAReporte(); }}
-          onLogout={handleLogout}
-          mostrarBotonVolver={true}
-          onVolver={() => setVistaHistorial(false)}
-        />
+        <UserHeader perfil={perfil} onVerHistorial={() => { }} onVerPerfil={() => { setVistaPerfil(true); setVistaHistorial(false); }} onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); if (historial.length === 0) irAReporte(); }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaHistorial(false)} />
 
         <div className="page-header"><div><h1>Mis Presupuestos</h1></div></div>
 
-        {/* BARRA DE FILTROS */}
-        <div className="panel" style={{ marginBottom: '20px', padding: '15px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
-            <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}>
-              <label>Buscar Cliente</label>
-              <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
-            </div>
+        {/* TABLERO DEL MINI-CRM */}
+        <div className="crm-dashboard">
+          <div className="crm-card pendiente">
+            <h4>🟡 Pendientes (En la calle)</h4>
+            <div className="monto">${formatNumber(resumenCRM.pendientes.monto)}</div>
+            <div className="cantidad">{resumenCRM.pendientes.cantidad} presupuestos esperando respuesta</div>
+          </div>
+          <div className="crm-card aprobado">
+            <h4>🟢 Aprobados (Plata segura)</h4>
+            <div className="monto">${formatNumber(resumenCRM.aprobados.monto)}</div>
+            <div className="cantidad">{resumenCRM.aprobados.cantidad} trabajos confirmados</div>
+          </div>
+          <div className="crm-card rechazado">
+            <h4>🔴 Rechazados</h4>
+            <div className="monto">${formatNumber(resumenCRM.rechazados.monto)}</div>
+            <div className="cantidad">{resumenCRM.rechazados.cantidad} presupuestos perdidos</div>
+          </div>
+        </div>
 
-            {/* FILTRO DE ESTADO */}
+        {/* BARRA DE FILTROS */}
+        <div className="panel panel-filtros">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
+            <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
+
             <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Estado</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'estado' ? null : 'estado'); }}
-              >
+              <button className="btn-filtro" onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'estado' ? null : 'estado'); }}>
                 <span>{filtroEstado ? (filtroEstado === 'aprobado' ? 'Aprobados' : filtroEstado === 'rechazado' ? 'Rechazados' : 'Pendientes') : 'Todos'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
               </button>
@@ -560,42 +569,30 @@ function App() {
               )}
             </div>
 
-            {/* FILTRO DE CATEGORÍA */}
             <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Categoría</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'categoria' ? null : 'categoria'); }}
-              >
+              <button className="btn-filtro" onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'categoria' ? null : 'categoria'); }}>
                 <span>{filtroCategoria || 'Todas'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
               </button>
               {menuFiltroAbierto === 'categoria' && (
                 <div className="menu-filtro">
                   <button onClick={() => { setFiltroCategoria(''); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todas</button>
-                  {familias.map(f => (
-                    <button key={f.id} onClick={() => { setFiltroCategoria(f.nombre); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>{f.nombre}</button>
-                  ))}
+                  {familias.map(f => <button key={f.id} onClick={() => { setFiltroCategoria(f.nombre); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>{f.nombre}</button>)}
                 </div>
               )}
             </div>
 
-            {/* FILTRO DE RUBRO */}
             <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Rubro</label>
-              <button
-                className="btn-filtro" disabled={!filtroCategoria}
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'rubro' ? null : 'rubro'); }}
-              >
+              <button className="btn-filtro" disabled={!filtroCategoria} onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'rubro' ? null : 'rubro'); }}>
                 <span>{filtroRubro || 'Todos'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
               </button>
               {menuFiltroAbierto === 'rubro' && filtroCategoria && (
                 <div className="menu-filtro">
                   <button onClick={() => { setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todos</button>
-                  {rubrosDisponibles.map(r => (
-                    <button key={r} onClick={() => { setFiltroRubro(r); setMenuFiltroAbierto(null); }}>{r}</button>
-                  ))}
+                  {rubrosDisponibles.map(r => <button key={r} onClick={() => { setFiltroRubro(r); setMenuFiltroAbierto(null); }}>{r}</button>)}
                 </div>
               )}
             </div>
@@ -603,16 +600,10 @@ function App() {
             <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Desde</label><input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} /></div>
             <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Hasta</label><input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} /></div>
 
-            {/* FILTRO DE ORDEN */}
             <div className="contenedor-popover" style={{ flex: '1 1 150px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Ordenar por</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'orden' ? null : 'orden'); }}
-              >
-                <span>
-                  {ordenHistorial === 'fecha-asc' ? 'Más antiguos' : ordenHistorial === 'cliente-asc' ? 'Cliente (A-Z)' : ordenHistorial === 'cliente-desc' ? 'Cliente (Z-A)' : 'Más nuevos'}
-                </span>
+              <button className="btn-filtro" onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'orden' ? null : 'orden'); }}>
+                <span>{ordenHistorial === 'fecha-asc' ? 'Más antiguos' : ordenHistorial === 'cliente-asc' ? 'Cliente (A-Z)' : ordenHistorial === 'cliente-desc' ? 'Cliente (Z-A)' : 'Más nuevos'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
               </button>
               {menuFiltroAbierto === 'orden' && (
@@ -629,7 +620,7 @@ function App() {
           </div>
         </div>
 
-        {/* LISTA DE TARJETAS */}
+        {/* LISTA DE TARJETAS CON ALERTAS */}
         {loadingHistorial ? <p>Cargando...</p> : historialFiltrado.length === 0 ? <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px' }}>No hay presupuestos.</div> : (
           <div className="grid-rubros">
             {historialFiltrado.map(p => {
@@ -637,8 +628,15 @@ function App() {
               const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Categoría';
               const nombreRubro = p.datos_entrada.rubroNombre || 'Rubro';
               const descripcion = p.datos_entrada.trabajo?.descripcion || 'Sin descripción';
+
+              // --- LÓGICA DE ALERTA DE VENCIMIENTO (15 días) ---
+              const fechaCreacion = new Date(p.creado_en);
+              const hoy = new Date();
+              const diasDiferencia = Math.floor((hoy.getTime() - fechaCreacion.getTime()) / (1000 * 3600 * 24));
+              const esViejo = p.estado === 'pendiente' && diasDiferencia >= 15;
+
               return (
-                <div key={p.id} className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
+                <div key={p.id} className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', borderTop: esViejo ? '4px solid #f97316' : undefined }}>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '0.85rem', color: 'var(--text-light)', fontWeight: 'bold' }}>
                     <span>{nombreCategoria} &gt; {nombreRubro}</span>
@@ -648,17 +646,29 @@ function App() {
                   <div style={{ marginBottom: '15px' }}>
                     <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '4px' }}>Cliente: {p.cliente_nombre}</strong>
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
+
+                    {/* Alerta visual (Aplica para PC y Celular) */}
+                    {esViejo && (
+                      <div className="alerta-vencido">
+                        ⚠️ Hace {diasDiferencia} días (Sin respuesta)
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
 
                     <div className="acciones-tarjeta">
+
+                      {/* BOTÓN DE RECORDATORIO: Solo se muestra si está vencido Y es celular */}
+                      {esViejo && esCelular && (
+                        <button className="btn-recordar" onClick={() => enviarRecordatorio(p)} title="Enviar Recordatorio por WhatsApp">
+                          💬 Recordar
+                        </button>
+                      )}
+
                       <div className="contenedor-popover">
-                        <button
-                          className={`btn-estado ${p.estado || 'pendiente'}`}
-                          onClick={(e) => { e.stopPropagation(); setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id); }}
-                        >
+                        <button className={`btn-estado ${p.estado || 'pendiente'}`} onClick={(e) => { e.stopPropagation(); setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id); }}>
                           <span className={`dot-color dot-${p.estado || 'pendiente'}`}></span>
                           {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -677,11 +687,7 @@ function App() {
                       </button>
 
                       <button className="btn-descarga" onClick={() => descargarPDFDelHistorial(p)}>
-                        {esCelular ? (
-                          <><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>Compartir</>
-                        ) : (
-                          <><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>PDF</>
-                        )}
+                        {esCelular ? <><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>Compartir</> : <><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>PDF</>}
                       </button>
                     </div>
                   </div>
@@ -701,9 +707,7 @@ function App() {
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
 
-        <UserHeader
-          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-        />
+        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout} />
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => { setRubroSeleccionado(null); setResultados(null); setGastosGenerales(''); setErrorValidacion(null); }}>← Volver a rubros</button>
@@ -715,6 +719,9 @@ function App() {
           <div className="panel panel-cliente">
             <h3>1. Datos del Cliente</h3>
             <div className="input-group"><label>Nombre *</label><input type="text" value={cliente.nombre} onChange={e => { setCliente({ ...cliente, nombre: e.target.value }); setErrorValidacion(null); }} /></div>
+
+            <div className="input-group"><label>Teléfono (WhatsApp)</label><input type="tel" value={cliente.telefono} onChange={e => setCliente({ ...cliente, telefono: e.target.value })} placeholder="Ej: 1155554444" /></div>
+
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
             <div className="input-group"><label>Vigencia del Presupuesto (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" /></div>
             <div className="input-group"><label>Descripción *</label><textarea rows={2} value={trabajo.descripcion} onChange={e => { setTrabajo({ ...trabajo, descripcion: e.target.value }); setErrorValidacion(null); }} /></div>
@@ -777,9 +784,7 @@ function App() {
     return (
       <div className="app-wrapper">
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
-        <UserHeader
-          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-        />
+        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout} />
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => setFamiliaSeleccionada(null)}>← Volver a Categorías</button>
@@ -799,9 +804,7 @@ function App() {
   return (
     <div className="app-wrapper">
       {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
-      <UserHeader
-        perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-      />
+      <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout} />
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>
       <div className="grid-rubros">
         {familias.map(familia => (

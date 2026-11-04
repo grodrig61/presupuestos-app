@@ -1539,3 +1539,94 @@ body {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* ==========================================================================
+   16. NUEVAS CLASES PARA EL MINI-CRM Y ALERTAS
+   ========================================================================== */
+
+/* Tablero de resumen (Tarjetas de estados en el historial y reporte) */
+.crm-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.crm-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-left: 4px solid var(--border);
+}
+
+.crm-card.pendiente {
+  border-left-color: #eab308;
+}
+
+.crm-card.aprobado {
+  border-left-color: #22c55e;
+}
+
+.crm-card.rechazado {
+  border-left-color: #ef4444;
+}
+
+.crm-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.crm-card .monto {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.crm-card .cantidad {
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+/* Alerta de presupuesto vencido */
+.alerta-vencido {
+  display: inline-block;
+  background-color: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #ffedd5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+/* Botón de Recordatorio de WhatsApp (Solo se muestra en celular) */
+.btn-recordar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #25D366;
+  /* Color oficial de WhatsApp */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 4px;
+}
+
+.btn-recordar:hover {
+  background-color: #128C7E;
+  transform: scale(1.05);
+}
