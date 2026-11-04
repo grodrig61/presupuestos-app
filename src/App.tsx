@@ -14,6 +14,7 @@ function App() {
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
+  // Estados del Perfil
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -21,11 +22,13 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
+  // Estados de la App
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
   const [loadingData, setLoadingData] = useState(true)
 
+  // Estados del Formulario
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -33,9 +36,10 @@ function App() {
   const [resultados, setResultados] = useState<Record<string, number> | null>(null)
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
 
-  // ESTADO PARA EL CARTEL VERDE DE ÉXITO
+  // Estado para el cartel verde flotante (Toast)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
+  // Estados del Historial
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
@@ -48,10 +52,10 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // Detectamos si es celular para cambiar los textos de la UI
+  // Detectamos si es celular para cambiar textos de la UI
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Efecto para que el cartel verde desaparezca solo a los 4 segundos
+  // Efecto para que el cartel verde desaparezca a los 4 segundos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -232,7 +236,6 @@ function App() {
       });
     }
 
-    // Llamamos a la función y le pasamos el callback para el cartel verde
     await descargarPDF(
       perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
@@ -257,6 +260,32 @@ function App() {
         perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
         () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
       );
+    }
+  }
+
+  // --- LÓGICA PARA DUPLICAR UN PRESUPUESTO ---
+  const duplicarPresupuesto = (presupuesto: PresupuestoGuardado) => {
+    const { datos_entrada, resultado_calculo, rubro_id } = presupuesto;
+
+    // Buscamos el rubro original en el JSON
+    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
+    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
+
+    if (rubroOriginal) {
+      // Inyectamos todos los datos guardados en el estado actual
+      setRubroSeleccionado(rubroOriginal);
+      setCliente(datos_entrada.cliente);
+      setTrabajo(datos_entrada.trabajo);
+      setValores(datos_entrada.valores);
+      setGastosGenerales(datos_entrada.gastosGenerales || '');
+      setResultados(resultado_calculo.resultados);
+
+      // Cerramos el historial y limpiamos errores previos
+      setVistaHistorial(false);
+      setErrorValidacion(null);
+
+      // Avisamos al usuario con el cartel verde
+      setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.");
     }
   }
 
@@ -352,7 +381,6 @@ function App() {
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
-        {/* CARTEL VERDE DE ÉXITO */}
         {toastExito && (
           <div className="success-banner">
             <span>✅ {toastExito}</span>
@@ -419,9 +447,18 @@ function App() {
                     <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '4px' }}>Cliente: {p.cliente_nombre}</strong>
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+
+                  {/* Botones de acción en la tarjeta */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-                    <button className="btn btn-primary" onClick={() => descargarPDFDelHistorial(p)} style={{ width: 'auto', padding: '8px 12px' }}>{esCelular ? '📲 Compartir' : '📄 Descargar'}</button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-secondary" onClick={() => duplicarPresupuesto(p)} style={{ padding: '8px', fontSize: '1rem' }} title="Duplicar Presupuesto">
+                        📋
+                      </button>
+                      <button className="btn btn-primary" onClick={() => descargarPDFDelHistorial(p)} style={{ width: 'auto', padding: '8px 12px' }}>
+                        {esCelular ? '📲 Compartir' : '📄 Descargar'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
@@ -440,7 +477,6 @@ function App() {
           <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>
         )}
 
-        {/* CARTEL VERDE DE ÉXITO */}
         {toastExito && (
           <div className="success-banner">
             <span>✅ {toastExito}</span>
@@ -508,7 +544,6 @@ function App() {
         </div>
         {resultados && (
           <div className="pdf-action-container">
-            {/* TEXTO DINÁMICO SEGÚN EL DISPOSITIVO */}
             <button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
               {esCelular ? '📲 Generar y Compartir' : '📄 Descargar PDF'}
             </button>
