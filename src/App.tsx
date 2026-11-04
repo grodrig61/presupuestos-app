@@ -1,7 +1,5 @@
 // ============================================================================
 // COMPONENTE PRINCIPAL DE LA APLICACIÓN (App.tsx)
-// Este archivo maneja el estado global, la navegación, la autenticación
-// y la lógica de negocio de ObraFácil.
 // ============================================================================
 
 import { useEffect, useState, useMemo } from 'react'
@@ -17,14 +15,11 @@ function App() {
   // ==========================================================================
   // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
+  const [session, setSession] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [mensajeAuth, setMensajeAuth] = useState('')
 
-  // --- Estados de Autenticación y Sesión ---
-  const [session, setSession] = useState<any>(null) // Guarda la sesión activa de Supabase
-  const [authLoading, setAuthLoading] = useState(true) // Indica si se está verificando la sesión
-  const [email, setEmail] = useState('') // Guarda el email para el login
-  const [mensajeAuth, setMensajeAuth] = useState('') // Mensajes de éxito o error en el login
-
-  // --- Estados del Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
@@ -33,44 +28,40 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
-  // --- Estados de Navegación y Datos ---
-  const [familias, setFamilias] = useState<Familia[]>([]) // Datos del JSON de Supabase
+  const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
-  const [loadingData, setLoadingData] = useState(true) // Carga inicial de los rubros
+  const [loadingData, setLoadingData] = useState(true)
 
-  // --- Estados del Formulario de Presupuesto ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
-  const [valores, setValores] = useState<Record<string, string>>({}) // Medidas y precios ingresados
+  const [valores, setValores] = useState<Record<string, string>>({})
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
-  const [vigenciaDias, setVigenciaDias] = useState<string>('15') // Días de validez (por defecto 15)
-  const [resultados, setResultados] = useState<Record<string, number> | null>(null) // Resultados del motor matemático
-  const [errorValidacion, setErrorValidacion] = useState<string | null>(null) // Mensajes de error
-
-  // --- Estado para Notificaciones (Toasts) ---
+  const [vigenciaDias, setVigenciaDias] = useState<string>('15')
+  const [resultados, setResultados] = useState<Record<string, number> | null>(null)
+  const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // --- Estados de Vistas (Pantallas) ---
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
 
-  // --- Estados del Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
+
+  // Estado para controlar qué menú de estado está abierto en el historial
+  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
+
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('') // Filtro para Pendiente/Aprobado/Rechazado
+  const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // Detecta si el usuario está en un dispositivo móvil para adaptar la UI
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Efecto para ocultar el cartel de éxito después de 4 segundos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -78,7 +69,13 @@ function App() {
     }
   }, [toastExito])
 
-  // Efecto de inicialización: Verifica si hay sesión al cargar la app
+  // Cerrar el menú de estado si el usuario hace clic fuera de él
+  useEffect(() => {
+    const cerrarMenus = () => setMenuEstadoAbierto(null)
+    document.addEventListener('click', cerrarMenus)
+    return () => document.removeEventListener('click', cerrarMenus)
+  }, [])
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -86,7 +83,6 @@ function App() {
       else setAuthLoading(false)
     })
 
-    // Escucha cambios en la autenticación (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) cargarPerfil(session.user.id)
@@ -137,7 +133,7 @@ function App() {
           const fileName = `${currentSession.user.id}-${Date.now()}.${fileExt}`
           const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, logoFile)
           if (!uploadError) {
-            const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
+            const { data } = await supabase.storage.from('logos').getPublicUrl(fileName)
             logoUrl = data.publicUrl
           }
         } catch (imgError) { console.warn("Error Storage:", imgError); }
@@ -168,10 +164,9 @@ function App() {
 
   const handleSeleccionarRubro = async (rubro: Rubro) => {
     setRubroSeleccionado(rubro); setResultados(null); setGastosGenerales(''); setErrorValidacion(null); setValores({});
-    setVigenciaDias('15') // Reseteamos la vigencia a 15 días cada vez que entra a un rubro
+    setVigenciaDias('15')
     if (!session) return;
 
-    // Cargar precios guardados (Memoria de precios)
     const { data, error } = await supabase.from('precios_usuario').select('clave_atributo, valor').eq('usuario_id', session.user.id).eq('rubro_id', rubro.id);
     if (!error && data) {
       const preciosGuardados: Record<string, string> = {};
@@ -215,7 +210,6 @@ function App() {
   const calcularPresupuesto = async () => {
     if (!validarMedidas() || !rubroSeleccionado) return;
 
-    // Guardar precios automáticamente en la nube
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
@@ -226,7 +220,6 @@ function App() {
       } catch (err) { console.error("No se guardaron precios", err); }
     }
 
-    // Ejecutar las fórmulas matemáticas
     const nuevoContexto: Record<string, any> = {}
     Object.keys(valores).forEach(key => {
       const num = Number(valores[key])
@@ -257,7 +250,6 @@ function App() {
 
     const numVigencia = Number(vigenciaDias) || 15;
 
-    // Guardar en el historial de Supabase
     if (session) {
       let totalMateriales = 0;
       Object.entries(resultados).forEach(([clave, cantidad]) => {
@@ -275,14 +267,13 @@ function App() {
         datos_entrada: { cliente, trabajo, valores, gastosGenerales, vigenciaDias: numVigencia, rubroNombre: rubroSeleccionado.nombre, familiaNombre: familiaActual?.nombre || 'Sin Categoría' },
         resultado_calculo: { resultados, totalGeneral },
         total: totalGeneral,
-        estado: 'pendiente' // Todo presupuesto nace pendiente
+        estado: 'pendiente'
       });
     }
 
-    // Llamar a la función que dibuja y comparte/descarga el PDF
     await descargarPDF(
       perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
-      numVigencia, new Date().toISOString(), // Le pasamos la vigencia y la fecha actual
+      numVigencia, new Date().toISOString(),
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
   }
@@ -321,7 +312,7 @@ function App() {
       const vigencia = datos_entrada.vigenciaDias || 15;
       await descargarPDF(
         perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
-        vigencia, creado_en, // Usamos la fecha original para calcular el vencimiento real de ese día
+        vigencia, creado_en,
         () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
       );
     }
@@ -348,12 +339,9 @@ function App() {
     }
   }
 
-  // Actualiza el estado del presupuesto (Pendiente, Aprobado, Rechazado)
   const actualizarEstado = async (id: string, nuevoEstado: string) => {
-    // Actualización local instantánea (Optimistic UI) para que el usuario vea el cambio al toque
+    setMenuEstadoAbierto(null); // Cerramos el menú al instante
     setHistorial(prev => prev.map(p => p.id === id ? { ...p, estado: nuevoEstado as any } : p));
-
-    // Actualización en la base de datos de Supabase
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
   }
 
@@ -392,13 +380,11 @@ function App() {
   }
 
   // ==========================================================================
-  // 7. RENDERIZADO DE PANTALLAS (Interfaz de Usuario)
+  // 7. RENDERIZADO DE PANTALLAS
   // ==========================================================================
 
-  // Pantalla de carga inicial
   if (authLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando sistema...</div>
 
-  // --- PANTALLA 1: LOGIN ---
   if (!session) {
     return (
       <div className="auth-container">
@@ -418,7 +404,6 @@ function App() {
     )
   }
 
-  // --- PANTALLA 2: COMPLETAR / EDITAR PERFIL ---
   if (!perfil || vistaPerfil) {
     return (
       <div className="auth-container">
@@ -454,10 +439,8 @@ function App() {
     )
   }
 
-  // Si los datos base no cargaron, mostramos mensaje
   if (loadingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos...</div>
 
-  // --- PANTALLA 3: REPORTE DE GESTIÓN ---
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
@@ -477,7 +460,6 @@ function App() {
     )
   }
 
-  // --- PANTALLA 4: HISTORIAL DE PRESUPUESTOS ---
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -500,7 +482,6 @@ function App() {
 
         <div className="page-header"><div><h1>Mis Presupuestos</h1></div></div>
 
-        {/* BARRA DE FILTROS */}
         <div className="panel" style={{ marginBottom: '20px', padding: '15px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
             <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
@@ -544,7 +525,6 @@ function App() {
           </div>
         </div>
 
-        {/* TARJETAS DEL HISTORIAL */}
         {loadingHistorial ? <p>Cargando...</p> : historialFiltrado.length === 0 ? <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px' }}>No hay presupuestos.</div> : (
           <div className="grid-rubros">
             {historialFiltrado.map(p => {
@@ -555,51 +535,69 @@ function App() {
               return (
                 <div key={p.id} className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
 
-                  {/* Fila superior: Categoría y Fecha */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '0.85rem', color: 'var(--text-light)', fontWeight: 'bold' }}>
                     <span>{nombreCategoria} &gt; {nombreRubro}</span>
                     <span>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
                   </div>
 
-                  {/* Datos del Cliente y Descripción */}
                   <div style={{ marginBottom: '15px' }}>
                     <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '4px' }}>Cliente: {p.cliente_nombre}</strong>
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
                   </div>
 
-                  {/* Footer: Monto, Selector de Estado y Botones de Acción */}
+                  {/* Footer: Monto, Botón de Estado Personalizado y Botón de Descarga */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
 
                     <div className="acciones-tarjeta">
 
-                      {/* Selector de estado usando las nuevas clases CSS */}
-                      <select
-                        className={`select-estado estado-${p.estado || 'pendiente'}`}
-                        value={p.estado || 'pendiente'}
-                        onChange={(e) => actualizarEstado(p.id, e.target.value)}
-                      >
-                        <option value="pendiente">Pendiente</option>
-                        <option value="aprobado">Aprobado</option>
-                        <option value="rechazado">Rechazado</option>
-                      </select>
+                      {/* POPOVER DE ESTADO PERSONALIZADO */}
+                      <div className="contenedor-popover">
+                        <button
+                          className={`btn-estado ${p.estado || 'pendiente'}`}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Evita que el clic cierre el menú inmediatamente
+                            setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id);
+                          }}
+                        >
+                          <span className={`dot-color dot-${p.estado || 'pendiente'}`}></span>
+                          {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                        </button>
 
-                      {/* Botón de Duplicar */}
-                      <button
-                        className="btn-icono"
-                        onClick={() => duplicarPresupuesto(p)}
-                        title="Duplicar Presupuesto"
-                      >
-                        📋
+                        {menuEstadoAbierto === p.id && (
+                          <div className="menu-estado">
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'pendiente'); }}>
+                              <span className="dot-color dot-pendiente"></span> Pendiente
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'aprobado'); }}>
+                              <span className="dot-color dot-aprobado"></span> Aprobado
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'rechazado'); }}>
+                              <span className="dot-color dot-rechazado"></span> Rechazado
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* BOTÓN DE DUPLICAR */}
+                      <button className="btn-icono" onClick={() => duplicarPresupuesto(p)} title="Duplicar Presupuesto">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
                       </button>
 
-                      {/* Botón de Descargar/Compartir */}
-                      <button
-                        className="btn-icono accion-principal"
-                        onClick={() => descargarPDFDelHistorial(p)}
-                        title={esCelular ? "Compartir" : "Descargar PDF"}
-                      >
-                        {esCelular ? '📲' : '📄'}
+                      {/* BOTÓN DE DESCARGA MEJORADO */}
+                      <button className="btn-descarga" onClick={() => descargarPDFDelHistorial(p)}>
+                        {esCelular ? (
+                          <>
+                            <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
+                            Compartir
+                          </>
+                        ) : (
+                          <>
+                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                            PDF
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -642,22 +640,18 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
-          {/* PANEL 1: Cliente y Vigencia */}
           <div className="panel panel-cliente">
             <h3>1. Datos del Cliente</h3>
             <div className="input-group"><label>Nombre *</label><input type="text" value={cliente.nombre} onChange={e => { setCliente({ ...cliente, nombre: e.target.value }); setErrorValidacion(null); }} /></div>
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
-
             <div className="input-group">
               <label>Vigencia del Presupuesto (Días)</label>
               <input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" />
             </div>
-
             <div className="input-group"><label>Descripción *</label><textarea rows={2} value={trabajo.descripcion} onChange={e => { setTrabajo({ ...trabajo, descripcion: e.target.value }); setErrorValidacion(null); }} /></div>
             <div className="input-group"><label>Tareas Detalladas</label><textarea rows={2} value={trabajo.tareas} onChange={e => setTrabajo({ ...trabajo, tareas: e.target.value })} /></div>
           </div>
 
-          {/* PANEL 2: Medidas */}
           <div className="panel panel-medidas">
             <h3>2. Medidas</h3>
             {rubroSeleccionado.atributos.map(atributo => (
@@ -675,7 +669,6 @@ function App() {
             ))}
           </div>
 
-          {/* PANEL 3: Precios */}
           <div className="panel panel-precios">
             <h3>3. Precios</h3>
             {rubroSeleccionado.costos.map(costo => (
@@ -687,7 +680,6 @@ function App() {
             <div className="input-group"><label>Gastos Generales</label><input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value)} placeholder="$ 0.00" /></div>
           </div>
 
-          {/* PANEL 4: Resultados */}
           <div className="panel panel-resultados">
             <h3>4. Resultados</h3>
             <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ marginBottom: '15px' }}>Calcular Totales</button>
@@ -701,7 +693,6 @@ function App() {
           </div>
         </div>
 
-        {/* Botón de generar PDF */}
         {resultados && (
           <div className="pdf-action-container">
             <button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
@@ -713,7 +704,6 @@ function App() {
     )
   }
 
-  // --- PANTALLA 6: RUBROS DE UNA CATEGORÍA ---
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
@@ -745,7 +735,6 @@ function App() {
     )
   }
 
-  // --- PANTALLA 7: HOME (LISTA DE FAMILIAS) ---
   return (
     <div className="app-wrapper">
       {toastExito && (

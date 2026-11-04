@@ -9,29 +9,22 @@
    1. VARIABLES GLOBALES DE DISEÑO
    ========================================================================== */
 :root {
-  /* Paleta de colores principales */
   --primary: #2563eb;
-  /* Azul principal de la marca (botones, enlaces) */
+  /* Azul principal de la marca */
   --primary-hover: #1d4ed8;
-  /* Azul más oscuro para el estado hover */
-
-  /* Colores de fondo */
+  /* Azul más oscuro para hover */
   --bg: #f1f5f9;
-  /* Fondo general de la aplicación (gris muy claro) */
+  /* Fondo general de la aplicación */
   --surface: #ffffff;
-  /* Fondo de tarjetas y paneles (blanco puro) */
-
-  /* Colores de texto */
+  /* Fondo de tarjetas y paneles */
   --text: #0f172a;
-  /* Texto principal (casi negro) */
+  /* Texto principal */
   --text-light: #64748b;
-  /* Texto secundario o deshabilitado (gris) */
-
-  /* Bordes y detalles */
+  /* Texto secundario */
   --border: #e2e8f0;
-  /* Color de los bordes divisores y contornos */
+  /* Color de los bordes */
   --success: #10b981;
-  /* Verde para acciones exitosas o botones de PDF */
+  /* Verde para acciones exitosas */
   --danger: #ef4444;
   /* Rojo para errores */
 }
@@ -40,7 +33,6 @@
    2. RESETEO Y ESTILOS BASE
    ========================================================================== */
 * {
-  /* Asegura que el padding y el border no aumenten el ancho total de un elemento */
   box-sizing: border-box;
 }
 
@@ -49,7 +41,6 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
   color: var(--text);
-  /* Suaviza las fuentes en pantallas de alta densidad (Retina/Apple) */
   -webkit-font-smoothing: antialiased;
 }
 
@@ -66,7 +57,6 @@ body {
    ========================================================================== */
 .app-wrapper {
   width: 100%;
-  /* Ancho máximo para que no se estire demasiado en monitores gigantes */
   max-width: 1600px;
   margin: 0 auto;
   padding: 20px;
@@ -100,42 +90,34 @@ body {
 /* ==========================================================================
    5. SISTEMA DE GRILLAS (Responsive)
    ========================================================================== */
-
-/* Grilla para las tarjetas de categorías (Familias y Rubros) */
 .grid-rubros {
   display: grid;
   grid-template-columns: 1fr;
-  /* 1 sola columna por defecto en celulares */
   gap: 12px;
 }
 
 @media (min-width: 600px) {
   .grid-rubros {
     grid-template-columns: repeat(2, 1fr);
-    /* 2 columnas en tablets y PC */
   }
 }
 
-/* Grilla para los 4 paneles del formulario de cálculo */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 15px;
-  /* Hace que todos los paneles de una fila midan lo mismo de alto */
   align-items: stretch;
 }
 
 @media (min-width: 768px) {
   .dashboard-grid {
     grid-template-columns: repeat(2, 1fr);
-    /* 2 columnas en tablets */
   }
 }
 
 @media (min-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: repeat(4, 1fr);
-    /* 4 columnas en pantallas grandes */
   }
 }
 
@@ -154,7 +136,6 @@ body {
   overflow: hidden;
 }
 
-/* Línea decorativa superior de colores según el panel */
 .panel::before {
   content: '';
   position: absolute;
@@ -164,27 +145,21 @@ body {
   height: 4px;
 }
 
-/* Colores específicos para cada tipo de panel */
 .panel-cliente::before {
   background: #3b82f6;
 }
 
-/* Azul */
 .panel-medidas::before {
   background: #8b5cf6;
 }
 
-/* Violeta */
 .panel-precios::before {
   background: #f59e0b;
 }
 
-/* Naranja */
 .panel-resultados::before {
   background: #10b981;
 }
-
-/* Verde */
 
 .panel h3 {
   margin-top: 0;
@@ -222,12 +197,10 @@ body {
   font-size: 1.8rem;
   font-weight: 700;
   margin-top: 10px;
-  /* Evita que números muy grandes rompan el diseño */
   word-break: break-word;
   line-height: 1.2;
 }
 
-/* Ajuste de fuente para celulares muy pequeños */
 @media (max-width: 400px) {
   .kpi-value {
     font-size: 1.4rem;
@@ -267,7 +240,6 @@ body {
   transition: all 0.2s ease;
 }
 
-/* Efecto visual al hacer foco en un campo */
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
@@ -331,7 +303,6 @@ body {
   background: var(--bg);
 }
 
-/* Botón de alternancia (Toggle) para los gráficos del reporte */
 .btn-toggle {
   background: #f1f5f9;
   border: 1px solid var(--border);
@@ -375,7 +346,6 @@ body {
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
-/* Flecha decorativa a la derecha de la tarjeta */
 .card-select::after {
   content: "→";
   color: var(--primary);
@@ -408,7 +378,6 @@ body {
   border-bottom: none;
 }
 
-/* Estado vacío (cuando no hay resultados aún) */
 .empty-state {
   display: flex;
   align-items: center;
@@ -420,7 +389,6 @@ body {
   font-style: italic;
 }
 
-/* Contenedor del botón de generar PDF */
 .pdf-action-container {
   margin-top: 20px;
   max-width: 400px;
@@ -595,7 +563,6 @@ body {
   flex-wrap: wrap;
 }
 
-/* Adaptación para móviles */
 @media (max-width: 600px) {
   .user-actions {
     width: 100%;
@@ -615,83 +582,138 @@ body {
 }
 
 /* ==========================================================================
-   15. NUEVOS ESTILOS: ACCIONES DEL HISTORIAL (Estados y Botones de Ícono)
+   15. NUEVOS ESTILOS: ACCIONES DEL HISTORIAL (Estados, Popover y Botones)
    ========================================================================== */
 
-/* Contenedor flex para alinear los botones y el estado en la tarjeta */
+/* Contenedor de las acciones en la tarjeta */
 .acciones-tarjeta {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
-/* Selector de estado estilo "Píldora" */
-.select-estado {
-  appearance: none;
-  -webkit-appearance: none;
+/* --- Botón de Estado y Popover --- */
+.contenedor-popover {
+  position: relative;
+}
+
+.btn-estado {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  outline: none;
-  text-align: center;
   transition: all 0.2s ease;
 }
 
-/* Colores de fondo suaves para cada estado */
-.estado-pendiente {
+/* Colores del botón según el estado */
+.btn-estado.pendiente {
   background-color: #fef9c3;
-  /* Amarillo muy pálido */
   color: #854d0e;
   border-color: #fde047;
 }
 
-.estado-aprobado {
+.btn-estado.aprobado {
   background-color: #dcfce7;
-  /* Verde pálido */
   color: #166534;
   border-color: #86efac;
 }
 
-.estado-rechazado {
+.btn-estado.rechazado {
   background-color: #fee2e2;
-  /* Rojo pálido */
   color: #991b1b;
   border-color: #fca5a5;
 }
 
-/* Botón de ícono genérico (Duplicar, etc.) */
-.btn-icono {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
+.btn-estado:hover {
+  filter: brightness(0.95);
+}
+
+/* El menú flotante que se despliega */
+.menu-estado {
+  position: absolute;
+  top: 110%;
+  right: 0;
   background: white;
-  color: var(--text-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  min-width: 140px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-estado button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.menu-estado button:hover {
+  background-color: var(--bg);
+}
+
+/* Puntito de color para el menú */
+.dot-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-pendiente {
+  background-color: #eab308;
+}
+
+.dot-aprobado {
+  background-color: #22c55e;
+}
+
+.dot-rechazado {
+  background-color: #ef4444;
+}
+
+/* --- Botón de Descargar PDF (Mejorado) --- */
+.btn-descarga {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: white;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 1.1rem;
 }
 
-.btn-icono:hover {
-  background: var(--bg);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-/* Botón de descarga/compartir específico */
-.btn-icono.accion-principal {
-  background: var(--primary);
+.btn-descarga:hover {
+  background-color: var(--primary);
   color: white;
-  border: none;
 }
 
-.btn-icono.accion-principal:hover {
-  background: var(--primary-hover);
-  transform: scale(1.05);
+/* Icono SVG dentro del botón */
+.btn-descarga svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
