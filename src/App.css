@@ -144,6 +144,10 @@ body {
 
   /* Espacio entre las tarjetas */
   gap: 12px;
+
+  /* El contenedor de tarjetas tiene z-index base 1 para no tapar menús */
+  position: relative;
+  z-index: 1;
 }
 
 /* Media query para tablets y pantallas más grandes */
@@ -215,6 +219,21 @@ body {
 
   /* CRÍTICO: 'visible' permite que los menús flotantes de los filtros salgan del panel */
   overflow: visible;
+}
+
+/* CLASE ESPECIAL PARA EL PANEL DE FILTROS (Z-INDEX ALTO) */
+.panel-filtros {
+  /* Posición relativa para crear un contexto de apilamiento */
+  position: relative;
+
+  /* Z-index alto para que se dibuje POR ENCIMA de las tarjetas de presupuestos */
+  z-index: 100;
+
+  /* Margen inferior para separarlo de las tarjetas */
+  margin-bottom: 20px;
+
+  /* Espaciado interno */
+  padding: 15px;
 }
 
 /* Línea decorativa superior de colores según el panel */
@@ -1148,7 +1167,7 @@ body {
   position: relative;
 
   /* Asegura que esté por encima de otros elementos */
-  z-index: 20;
+  z-index: 50;
 }
 
 /* Botón que muestra el estado actual */
@@ -1317,7 +1336,7 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
   /* Asegura que esté por encima de TODO */
-  z-index: 100;
+  z-index: 9999;
 
   /* Espaciado interno */
   padding: 4px;
