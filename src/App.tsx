@@ -3,7 +3,7 @@ import { supabase } from './lib/supabaseClient'
 import { descargarPDF } from './lib/pdfGenerator'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './lib/utils'
 import { UserHeader } from './components/UserHeader'
-import { ReporteGestion } from './components/ReporteGestion' // IMPORTAMOS EL NUEVO COMPONENTE
+import { ReporteGestion } from './components/ReporteGestion'
 import type { Rubro, Familia, Perfil, PresupuestoGuardado } from './types'
 import './App.css'
 
@@ -36,10 +36,9 @@ function App() {
 
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // ESTADOS DE NAVEGACIÓN
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
-  const [vistaReporte, setVistaReporte] = useState(false) // NUEVO ESTADO
+  const [vistaReporte, setVistaReporte] = useState(false)
 
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
@@ -112,7 +111,7 @@ function App() {
           const fileName = `${currentSession.user.id}-${Date.now()}.${fileExt}`
           const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, logoFile)
           if (!uploadError) {
-            const { data } = await supabase.storage.from('logos').getPublicUrl(fileName)
+            const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
             logoUrl = data.publicUrl
           }
         } catch (imgError) { console.warn("Error Storage:", imgError); }
@@ -239,7 +238,6 @@ function App() {
     );
   }
 
-  // --- CARGA DE DATOS PARA EL HISTORIAL Y EL REPORTE ---
   const irAHistorial = async () => {
     if (!session) return;
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false);
@@ -252,7 +250,6 @@ function App() {
     if (!session) return;
     setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false);
 
-    // Si no tenemos el historial cargado, lo traemos
     if (historial.length === 0) {
       setLoadingData(true);
       const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
@@ -390,7 +387,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={irAHistorial}
           onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
-          onVerReporte={() => { }} // Ya estamos acá
+          onVerReporte={() => { }}
           onLogout={handleLogout}
           mostrarBotonVolver={true}
           onVolver={() => setVistaReporte(false)}

@@ -35,7 +35,6 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
             const label = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }).toUpperCase();
             meses[clave] = 0;
-            // Guardamos el label formateado (ej: NOV 26)
             meses[`${clave}-label`] = label as any;
         }
 
@@ -48,7 +47,6 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             }
         });
 
-        // Convertimos a un array para Recharts
         return Object.keys(meses)
             .filter(key => !key.includes('-label'))
             .map(clave => ({
@@ -62,18 +60,17 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
         const conteo: Record<string, number> = {};
 
         historial.forEach(p => {
-            // Buscamos el nombre de la familia (categoría)
             const familia = familias.find(f => f.rubros.some(r => r.id === p.rubro_id));
             const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Otros';
 
             if (!conteo[nombreCategoria]) conteo[nombreCategoria] = 0;
-            conteo[nombreCategoria] += 1; // Contamos cuántos presupuestos hay de cada categoría
+            conteo[nombreCategoria] += 1;
         });
 
         return Object.keys(conteo).map(nombre => ({
             name: nombre,
             value: conteo[nombre]
-        })).sort((a, b) => b.value - a.value); // Ordenamos de mayor a menor
+        })).sort((a, b) => b.value - a.value);
     }, [historial, familias]);
 
     if (historial.length === 0) {
@@ -121,7 +118,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                                 <XAxis dataKey="mes" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
                                 <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                 <Tooltip
-                                    formatter={(value: number) => [`$${formatNumber(value)}`, 'Cotizado']}
+                                    formatter={(value) => [`$${formatNumber(Number(value))}`, 'Cotizado']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                                 />
                                 <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={40} />
@@ -150,7 +147,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    formatter={(value: number) => [`${value} presupuestos`, 'Cantidad']}
+                                    formatter={(value) => [`${value} presupuestos`, 'Cantidad']}
                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
                                 />
                                 <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.85rem' }} />
