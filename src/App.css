@@ -1,4 +1,4 @@
-/* Importamos la fuente Inter desde Google Fonts */
+/* Importamos la fuente Inter desde Google Fonts para un diseño moderno */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ==========================================
@@ -26,7 +26,7 @@
    ========================================== */
 * {
   box-sizing: border-box;
-  /* Asegura que el padding no aumente el tamaño de los elementos */
+  /* Asegura que el padding no aumente el tamaño real de los elementos */
 }
 
 body {
@@ -46,10 +46,11 @@ body {
   text-align: left;
 }
 
+/* Contenedor principal que envuelve toda la app */
 .app-wrapper {
   width: 100%;
   max-width: 1600px;
-  /* Ancho máximo para que no se estire de más en monitores grandes */
+  /* Ancho máximo para que no se estire de más en monitores ultra-anchos */
   margin: 0 auto;
   padding: 20px;
   min-height: 100vh;
@@ -211,6 +212,7 @@ body {
   text-align: left;
 }
 
+/* Efecto visual al hacer foco en un input */
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
@@ -248,7 +250,7 @@ body {
   background: #1d4ed8;
 }
 
-/* Botón de éxito (Verde) - Ej: Generar PDF */
+/* Botón de éxito (Verde) - Ej: Generar y Compartir / Descargar PDF */
 .btn-success {
   background: var(--success);
   color: white;
@@ -261,7 +263,7 @@ body {
   background: #059669;
 }
 
-/* Botón secundario (Blanco con borde) - Ej: Volver, Mi Perfil */
+/* Botón secundario (Blanco con borde) - Ej: Volver, Mi Perfil, Reporte */
 .btn-secondary {
   background: white;
   color: var(--text);
@@ -303,6 +305,7 @@ body {
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
+/* Flecha decorativa a la derecha de las tarjetas */
 .card-select::after {
   content: "→";
   color: var(--primary);
@@ -333,8 +336,10 @@ body {
 
 .resultado-item:last-child {
   border-bottom: none;
+  /* Quita la línea del último ítem */
 }
 
+/* Estado vacío (cuando no hay resultados ni datos) */
 .empty-state {
   display: flex;
   align-items: center;
@@ -346,6 +351,7 @@ body {
   font-style: italic;
 }
 
+/* Contenedor del botón de PDF */
 .pdf-action-container {
   margin-top: 20px;
   max-width: 400px;
@@ -429,6 +435,7 @@ body {
   color: #166534;
 }
 
+/* Animación para que los carteles entren desde la derecha */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -490,7 +497,7 @@ body {
   margin-bottom: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   flex-wrap: wrap;
-  /* Permite que los botones bajen si no entran */
+  /* Permite que los botones bajen a la siguiente línea si no entran */
   gap: 15px;
 }
 
@@ -529,17 +536,21 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+  /* Permite que los botones bajen de línea si no hay espacio */
 }
 
-/* REGLAS RESPONSIVE PARA CELULARES (Arregla el botón de "Cerrar Sesión") */
+/* REGLAS RESPONSIVE PARA CELULARES (Acomoda los 5 botones) */
 @media (max-width: 600px) {
   .user-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
+    /* Centra los botones en celular */
   }
 
   .user-actions .btn {
-    flex: 1;
+    flex: 1 1 40%;
+    /* Hace que los botones ocupen casi la mitad de la pantalla cada uno */
     padding: 8px 4px;
     font-size: 0.75rem;
     white-space: nowrap;

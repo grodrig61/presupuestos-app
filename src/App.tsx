@@ -3,6 +3,7 @@ import { supabase } from './lib/supabaseClient'
 import { descargarPDF } from './lib/pdfGenerator'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './lib/utils'
 import { UserHeader } from './components/UserHeader'
+import { ReporteGestion } from './components/ReporteGestion' // IMPORTAMOS EL NUEVO COMPONENTE
 import type { Rubro, Familia, Perfil, PresupuestoGuardado } from './types'
 import './App.css'
 
@@ -14,7 +15,6 @@ function App() {
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
-  // Estados del Perfil
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -22,13 +22,11 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
-  // Estados de la App
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
   const [loadingData, setLoadingData] = useState(true)
 
-  // Estados del Formulario
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -36,12 +34,13 @@ function App() {
   const [resultados, setResultados] = useState<Record<string, number> | null>(null)
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
 
-  // Estado para el cartel verde flotante (Toast)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // Estados del Historial
+  // ESTADOS DE NAVEGACIÓN
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
+  const [vistaReporte, setVistaReporte] = useState(false) // NUEVO ESTADO
+
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
 
@@ -52,10 +51,8 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // Detectamos si es celular para cambiar textos de la UI
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Efecto para que el cartel verde desaparezca a los 4 segundos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -97,7 +94,7 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null); setVistaHistorial(false); setVistaPerfil(false); setEmail(''); setMensajeAuth('')
+    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setEmail(''); setMensajeAuth('')
   }
 
   const guardarPerfil = async (e: React.FormEvent) => {
@@ -115,7 +112,7 @@ function App() {
           const fileName = `${currentSession.user.id}-${Date.now()}.${fileExt}`
           const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, logoFile)
           if (!uploadError) {
-            const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
+            const { data } = await supabase.storage.from('logos').getPublicUrl(fileName)
             logoUrl = data.publicUrl
           }
         } catch (imgError) { console.warn("Error Storage:", imgError); }
@@ -242,12 +239,26 @@ function App() {
     );
   }
 
-  const cargarHistorial = async () => {
+  // --- CARGA DE DATOS PARA EL HISTORIAL Y EL REPORTE ---
+  const irAHistorial = async () => {
     if (!session) return;
-    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false);
+    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false);
     const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
     if (!error && data) setHistorial(data);
     setLoadingHistorial(false);
+  }
+
+  const irAReporte = async () => {
+    if (!session) return;
+    setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false);
+
+    // Si no tenemos el historial cargado, lo traemos
+    if (historial.length === 0) {
+      setLoadingData(true);
+      const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
+      if (!error && data) setHistorial(data);
+      setLoadingData(false);
+    }
   }
 
   const descargarPDFDelHistorial = async (presupuesto: PresupuestoGuardado) => {
@@ -263,16 +274,12 @@ function App() {
     }
   }
 
-  // --- LÓGICA PARA DUPLICAR UN PRESUPUESTO ---
   const duplicarPresupuesto = (presupuesto: PresupuestoGuardado) => {
     const { datos_entrada, resultado_calculo, rubro_id } = presupuesto;
-
-    // Buscamos el rubro original en el JSON
     const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
     const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
 
     if (rubroOriginal) {
-      // Inyectamos todos los datos guardados en el estado actual
       setRubroSeleccionado(rubroOriginal);
       setCliente(datos_entrada.cliente);
       setTrabajo(datos_entrada.trabajo);
@@ -280,11 +287,9 @@ function App() {
       setGastosGenerales(datos_entrada.gastosGenerales || '');
       setResultados(resultado_calculo.resultados);
 
-      // Cerramos el historial y limpiamos errores previos
       setVistaHistorial(false);
+      setVistaReporte(false);
       setErrorValidacion(null);
-
-      // Avisamos al usuario con el cartel verde
       setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.");
     }
   }
@@ -377,6 +382,26 @@ function App() {
 
   if (loadingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos...</div>
 
+  // --- PANTALLA DE REPORTE DE GESTIÓN ---
+  if (vistaReporte) {
+    return (
+      <div className="app-wrapper">
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
+          onVerReporte={() => { }} // Ya estamos acá
+          onLogout={handleLogout}
+          mostrarBotonVolver={true}
+          onVolver={() => setVistaReporte(false)}
+        />
+        <div className="page-header"><div><h1>Resumen de Gestión</h1><p>Visualizá el rendimiento de tu negocio</p></div></div>
+
+        <ReporteGestion historial={historial} familias={familias} />
+      </div>
+    )
+  }
+
   // --- PANTALLA DE HISTORIAL ---
   if (vistaHistorial) {
     return (
@@ -392,6 +417,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={() => { }}
           onVerPerfil={() => { setVistaPerfil(true); setVistaHistorial(false); }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); if (historial.length === 0) irAReporte(); }}
           onLogout={handleLogout}
           mostrarBotonVolver={true}
           onVolver={() => setVistaHistorial(false)}
@@ -448,7 +474,6 @@ function App() {
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
                   </div>
 
-                  {/* Botones de acción en la tarjeta */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -486,8 +511,9 @@ function App() {
 
         <UserHeader
           perfil={perfil}
-          onVerHistorial={cargarHistorial}
+          onVerHistorial={irAHistorial}
           onVerPerfil={() => setVistaPerfil(true)}
+          onVerReporte={irAReporte}
           onLogout={handleLogout}
         />
         <div className="page-header">
@@ -564,8 +590,9 @@ function App() {
         )}
         <UserHeader
           perfil={perfil}
-          onVerHistorial={cargarHistorial}
+          onVerHistorial={irAHistorial}
           onVerPerfil={() => setVistaPerfil(true)}
+          onVerReporte={irAReporte}
           onLogout={handleLogout}
         />
         <div className="page-header">
@@ -593,8 +620,9 @@ function App() {
       )}
       <UserHeader
         perfil={perfil}
-        onVerHistorial={cargarHistorial}
+        onVerHistorial={irAHistorial}
         onVerPerfil={() => setVistaPerfil(true)}
+        onVerReporte={irAReporte}
         onLogout={handleLogout}
       />
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>

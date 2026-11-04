@@ -5,12 +5,13 @@ interface Props {
     perfil: Perfil;
     onVerHistorial: () => void;
     onVerPerfil: () => void;
+    onVerReporte: () => void; // NUEVA PROP
     onLogout: () => void;
     mostrarBotonVolver?: boolean;
     onVolver?: () => void;
 }
 
-export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onLogout, mostrarBotonVolver, onVolver }: Props) => {
+export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onVerReporte, onLogout, mostrarBotonVolver, onVolver }: Props) => {
     return (
         <div className="user-header">
             <div className="user-info">
@@ -25,8 +26,9 @@ export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onLogout, most
                 {mostrarBotonVolver && (
                     <button className="btn btn-secondary" onClick={onVolver}>← Volver</button>
                 )}
+                <button className="btn btn-secondary" onClick={onVerReporte}>📊 Reporte</button>
                 <button className="btn btn-secondary" onClick={onVerPerfil}>👤 Mi Perfil</button>
-                <button className="btn btn-secondary" onClick={onVerHistorial}>📁 Mis Presupuestos</button>
+                <button className="btn btn-secondary" onClick={onVerHistorial}>📁 Presupuestos</button>
                 <button className="btn btn-secondary" onClick={onLogout}>Cerrar Sesión</button>
             </div>
         </div>
