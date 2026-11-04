@@ -83,7 +83,7 @@ export const descargarPDF = async (
                 // Dibujamos el logo en la esquina superior izquierda
                 page.drawImage(logoImage, {
                     x: marginLeft,
-                    y: y - logoDims.height,
+                    y: y - logoDims.height + 10,
                     width: logoDims.width,
                     height: logoDims.height
                 })
