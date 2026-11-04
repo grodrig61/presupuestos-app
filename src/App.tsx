@@ -15,11 +15,14 @@ function App() {
   // ==========================================================================
   // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
+
+  // --- Autenticación ---
   const [session, setSession] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
+  // --- Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
@@ -28,6 +31,7 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
+  // --- Datos y Navegación ---
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
@@ -36,6 +40,7 @@ function App() {
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
 
+  // --- Formulario del Presupuesto ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -45,10 +50,9 @@ function App() {
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
+  // --- Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
-
-  // Filtros
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
@@ -58,8 +62,8 @@ function App() {
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
   // --- Estados para los Popovers (Menús flotantes) ---
-  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null) // Para las tarjetas
-  const [menuFiltroEstadoAbierto, setMenuFiltroEstadoAbierto] = useState(false) // Para el filtro
+  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
+  const [menuFiltroAbierto, setMenuFiltroAbierto] = useState<string | null>(null)
 
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
@@ -75,7 +79,7 @@ function App() {
   useEffect(() => {
     const cerrarMenus = () => {
       setMenuEstadoAbierto(null)
-      setMenuFiltroEstadoAbierto(false)
+      setMenuFiltroAbierto(null)
     }
     document.addEventListener('click', cerrarMenus)
     return () => document.removeEventListener('click', cerrarMenus)
@@ -202,9 +206,7 @@ function App() {
 
     if (!error && data) {
       const preciosGuardados: Record<string, string> = {}
-      data.forEach(item => {
-        preciosGuardados[item.clave_atributo] = item.valor.toString()
-      })
+      data.forEach(item => { preciosGuardados[item.clave_atributo] = item.valor.toString() })
       setValores(prev => ({ ...prev, ...preciosGuardados }))
     }
   }
@@ -229,14 +231,8 @@ function App() {
 
   const validarParaPDF = (): boolean => {
     if (!validarMedidas() || !rubroSeleccionado) return false
-    if (!cliente.nombre.trim()) {
-      setErrorValidacion("Falta el nombre del cliente.")
-      return false
-    }
-    if (!trabajo.descripcion.trim()) {
-      setErrorValidacion("Falta la descripción del trabajo.")
-      return false
-    }
+    if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return false }
+    if (!trabajo.descripcion.trim()) { setErrorValidacion("Falta la descripción del trabajo."); return false }
 
     let totalMateriales = 0
     if (resultados) {
@@ -247,10 +243,7 @@ function App() {
       })
     }
     const montoGastos = Number(gastosGenerales) || 0
-    if (totalMateriales + montoGastos <= 0) {
-      setErrorValidacion("El total es $0,00.")
-      return false
-    }
+    if (totalMateriales + montoGastos <= 0) { setErrorValidacion("El total es $0,00."); return false }
     return true
   }
 
@@ -261,23 +254,13 @@ function App() {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
           const numValor = Number(valores[costo.clave])
-          return {
-            usuario_id: session.user.id,
-            rubro_id: rubroSeleccionado.id,
-            clave_atributo: costo.clave,
-            valor: isNaN(numValor) ? 0 : numValor,
-            unidad: costo.unidad
-          }
+          return { usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, clave_atributo: costo.clave, valor: isNaN(numValor) ? 0 : numValor, unidad: costo.unidad }
         }).filter(p => p.valor > 0)
 
         if (preciosAGuardar.length > 0) {
-          await supabase.from('precios_usuario').upsert(preciosAGuardar, {
-            onConflict: 'usuario_id, rubro_id, clave_atributo'
-          })
+          await supabase.from('precios_usuario').upsert(preciosAGuardar, { onConflict: 'usuario_id, rubro_id, clave_atributo' })
         }
-      } catch (err) {
-        console.error("No se guardaron precios", err)
-      }
+      } catch (err) { console.error("No se guardaron precios", err) }
     }
 
     const nuevoContexto: Record<string, any> = {}
@@ -295,9 +278,7 @@ function App() {
         const resultadoFinal = typeof resultado === 'number' ? Number(resultado.toFixed(2)) : resultado
         resultadosCalculados[claveResultado] = resultadoFinal
         nuevoContexto[claveResultado] = resultadoFinal
-      } catch (error) {
-        console.error(error)
-      }
+      } catch (error) { console.error(error) }
     })
     setResultados(resultadosCalculados)
     setErrorValidacion(null)
@@ -324,34 +305,15 @@ function App() {
       const familiaActual = familias.find(f => f.rubros.some(r => r.id === rubroSeleccionado.id))
 
       await supabase.from('presupuestos').insert({
-        usuario_id: session.user.id,
-        rubro_id: rubroSeleccionado.id,
-        cliente_nombre: cliente.nombre,
-        datos_entrada: {
-          cliente,
-          trabajo,
-          valores,
-          gastosGenerales,
-          vigenciaDias: numVigencia,
-          rubroNombre: rubroSeleccionado.nombre,
-          familiaNombre: familiaActual?.nombre || 'Sin Categoría'
-        },
-        resultado_calculo: { resultados, totalGeneral },
-        total: totalGeneral,
-        estado: 'pendiente'
+        usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, cliente_nombre: cliente.nombre,
+        datos_entrada: { cliente, trabajo, valores, gastosGenerales, vigenciaDias: numVigencia, rubroNombre: rubroSeleccionado.nombre, familiaNombre: familiaActual?.nombre || 'Sin Categoría' },
+        resultado_calculo: { resultados, totalGeneral }, total: totalGeneral, estado: 'pendiente'
       })
     }
 
     await descargarPDF(
-      perfil,
-      cliente,
-      trabajo,
-      resultados,
-      valores,
-      rubroSeleccionado,
-      gastosGenerales,
-      numVigencia,
-      new Date().toISOString(),
+      perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
+      numVigencia, new Date().toISOString(),
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     )
   }
@@ -362,16 +324,10 @@ function App() {
 
   const irAHistorial = async () => {
     if (!session) return
-    setLoadingHistorial(true)
-    setVistaHistorial(true)
-    setVistaPerfil(false)
-    setVistaReporte(false)
+    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false)
 
     const { data, error } = await supabase
-      .from('presupuestos')
-      .select('*')
-      .eq('usuario_id', session.user.id)
-      .order('creado_en', { ascending: false })
+      .from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false })
 
     if (!error && data) setHistorial(data)
     setLoadingHistorial(false)
@@ -379,17 +335,11 @@ function App() {
 
   const irAReporte = async () => {
     if (!session) return
-    setVistaReporte(true)
-    setVistaHistorial(false)
-    setVistaPerfil(false)
+    setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false)
 
     if (historial.length === 0) {
       setLoadingData(true)
-      const { data, error } = await supabase
-        .from('presupuestos')
-        .select('*')
-        .eq('usuario_id', session.user.id)
-        .order('creado_en', { ascending: false })
+      const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false })
       if (!error && data) setHistorial(data)
       setLoadingData(false)
     }
@@ -404,15 +354,8 @@ function App() {
     if (rubroOriginal) {
       const vigencia = datos_entrada.vigenciaDias || 15
       await descargarPDF(
-        perfil,
-        datos_entrada.cliente,
-        datos_entrada.trabajo,
-        resultado_calculo.resultados,
-        datos_entrada.valores,
-        rubroOriginal,
-        datos_entrada.gastosGenerales,
-        vigencia,
-        creado_en,
+        perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
+        vigencia, creado_en,
         () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
       )
     }
@@ -424,17 +367,12 @@ function App() {
     const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id)
 
     if (rubroOriginal) {
-      setRubroSeleccionado(rubroOriginal)
-      setCliente(datos_entrada.cliente)
-      setTrabajo(datos_entrada.trabajo)
-      setValores(datos_entrada.valores)
-      setGastosGenerales(datos_entrada.gastosGenerales || '')
+      setRubroSeleccionado(rubroOriginal); setCliente(datos_entrada.cliente); setTrabajo(datos_entrada.trabajo)
+      setValores(datos_entrada.valores); setGastosGenerales(datos_entrada.gastosGenerales || '')
       setVigenciaDias(datos_entrada.vigenciaDias ? datos_entrada.vigenciaDias.toString() : '15')
       setResultados(resultado_calculo.resultados)
 
-      setVistaHistorial(false)
-      setVistaReporte(false)
-      setErrorValidacion(null)
+      setVistaHistorial(false); setVistaReporte(false); setErrorValidacion(null)
       setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.")
     }
   }
@@ -455,37 +393,28 @@ function App() {
     if (filtroCliente) {
       filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()))
     }
-
     if (filtroCategoria) {
       filtrado = filtrado.filter(p => (p.datos_entrada.familiaNombre || familias.find(f => f.rubros.some(r => r.id === p.rubro_id))?.nombre) === filtroCategoria)
     }
-
     if (filtroRubro) {
       filtrado = filtrado.filter(p => p.datos_entrada.rubroNombre === filtroRubro)
     }
-
     if (filtroEstado) {
       filtrado = filtrado.filter(p => p.estado === filtroEstado)
     }
-
     if (filtroFechaDesde) {
       filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() >= new Date(filtroFechaDesde + 'T00:00:00').getTime())
     }
-
     if (filtroFechaHasta) {
       filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() <= new Date(filtroFechaHasta + 'T23:59:59').getTime())
     }
 
     filtrado.sort((a, b) => {
       switch (ordenHistorial) {
-        case 'fecha-asc':
-          return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime()
-        case 'cliente-asc':
-          return a.cliente_nombre.localeCompare(b.cliente_nombre)
-        case 'cliente-desc':
-          return b.cliente_nombre.localeCompare(a.cliente_nombre)
-        default:
-          return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
+        case 'fecha-asc': return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime()
+        case 'cliente-asc': return a.cliente_nombre.localeCompare(b.cliente_nombre)
+        case 'cliente-desc': return b.cliente_nombre.localeCompare(a.cliente_nombre)
+        default: return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
       }
     })
     return filtrado
@@ -498,13 +427,7 @@ function App() {
   }, [filtroCategoria, familias])
 
   const limpiarFiltros = () => {
-    setFiltroCliente('')
-    setFiltroCategoria('')
-    setFiltroRubro('')
-    setFiltroEstado('')
-    setFiltroFechaDesde('')
-    setFiltroFechaHasta('')
-    setOrdenHistorial('fecha-desc')
+    setFiltroCliente(''); setFiltroCategoria(''); setFiltroRubro(''); setFiltroEstado(''); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setOrdenHistorial('fecha-desc')
   }
 
   // ==========================================================================
@@ -557,11 +480,7 @@ function App() {
               <button type="submit" className="btn btn-primary" disabled={guardandoPerfil}>
                 {guardandoPerfil ? 'Guardando...' : 'Guardar Cambios'}
               </button>
-              {perfil && (
-                <button type="button" className="btn btn-secondary" onClick={() => setVistaPerfil(false)}>
-                  Cancelar
-                </button>
-              )}
+              {perfil && <button type="button" className="btn btn-secondary" onClick={() => setVistaPerfil(false)}>Cancelar</button>}
             </div>
           </form>
         </div>
@@ -585,7 +504,6 @@ function App() {
           onVolver={() => setVistaReporte(false)}
         />
         <div className="page-header"><div><h1>Resumen de Gestión</h1><p>Visualizá el rendimiento de tu negocio</p></div></div>
-
         <ReporteGestion historial={historial} familias={familias} />
       </div>
     )
@@ -614,79 +532,104 @@ function App() {
 
         <div className="page-header"><div><h1>Mis Presupuestos</h1></div></div>
 
+        {/* BARRA DE FILTROS */}
         <div className="panel" style={{ marginBottom: '20px', padding: '15px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
-            <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
+            <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}>
+              <label>Buscar Cliente</label>
+              <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
+            </div>
 
-            {/* FILTRO DE ESTADO PERSONALIZADO (POPOVER) */}
+            {/* FILTRO DE ESTADO */}
             <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Estado</label>
               <button
-                className={`btn-estado ${filtroEstado ? filtroEstado : 'pendiente'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuFiltroEstadoAbierto(!menuFiltroEstadoAbierto);
-                }}
-                style={{ width: '100%', justifyContent: 'space-between', backgroundColor: filtroEstado ? undefined : '#f1f5f9', color: filtroEstado ? undefined : '#64748b', borderColor: filtroEstado ? undefined : '#e2e8f0' }}
+                className="btn-filtro"
+                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'estado' ? null : 'estado'); }}
               >
-                {filtroEstado ? (
-                  <>
-                    <span className={`dot-color dot-${filtroEstado}`}></span>
-                    {filtroEstado === 'aprobado' ? 'Aprobados' : filtroEstado === 'rechazado' ? 'Rechazados' : 'Pendientes'}
-                  </>
-                ) : (
-                  'Todos los estados'
-                )}
+                <span>{filtroEstado ? (filtroEstado === 'aprobado' ? 'Aprobados' : filtroEstado === 'rechazado' ? 'Rechazados' : 'Pendientes') : 'Todos'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
               </button>
-
-              {menuFiltroEstadoAbierto && (
-                <div className="menu-estado" style={{ width: '100%' }}>
-                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado(''); setMenuFiltroEstadoAbierto(false); }}>
-                    Todos
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('pendiente'); setMenuFiltroEstadoAbierto(false); }}>
-                    <span className="dot-color dot-pendiente"></span> Pendientes
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('aprobado'); setMenuFiltroEstadoAbierto(false); }}>
-                    <span className="dot-color dot-aprobado"></span> Aprobados
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('rechazado'); setMenuFiltroEstadoAbierto(false); }}>
-                    <span className="dot-color dot-rechazado"></span> Rechazados
-                  </button>
+              {menuFiltroAbierto === 'estado' && (
+                <div className="menu-filtro">
+                  <button onClick={() => { setFiltroEstado(''); setMenuFiltroAbierto(null); }}>Todos</button>
+                  <button onClick={() => { setFiltroEstado('pendiente'); setMenuFiltroAbierto(null); }}>Pendientes</button>
+                  <button onClick={() => { setFiltroEstado('aprobado'); setMenuFiltroAbierto(null); }}>Aprobados</button>
+                  <button onClick={() => { setFiltroEstado('rechazado'); setMenuFiltroAbierto(null); }}>Rechazados</button>
                 </div>
               )}
             </div>
 
-            <div className="input-group" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label>Categoría</label>
-              <select value={filtroCategoria} onChange={e => { setFiltroCategoria(e.target.value); setFiltroRubro(''); }}>
-                <option value="">Todas</option>
-                {familias.map(f => <option key={f.id} value={f.nombre}>{f.nombre}</option>)}
-              </select>
+            {/* FILTRO DE CATEGORÍA */}
+            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Categoría</label>
+              <button
+                className="btn-filtro"
+                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'categoria' ? null : 'categoria'); }}
+              >
+                <span>{filtroCategoria || 'Todas'}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {menuFiltroAbierto === 'categoria' && (
+                <div className="menu-filtro">
+                  <button onClick={() => { setFiltroCategoria(''); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todas</button>
+                  {familias.map(f => (
+                    <button key={f.id} onClick={() => { setFiltroCategoria(f.nombre); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>{f.nombre}</button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="input-group" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label>Rubro</label>
-              <select value={filtroRubro} onChange={e => setFiltroRubro(e.target.value)} disabled={!filtroCategoria}>
-                <option value="">Todos</option>
-                {rubrosDisponibles.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+
+            {/* FILTRO DE RUBRO */}
+            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Rubro</label>
+              <button
+                className="btn-filtro" disabled={!filtroCategoria}
+                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'rubro' ? null : 'rubro'); }}
+              >
+                <span>{filtroRubro || 'Todos'}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {menuFiltroAbierto === 'rubro' && filtroCategoria && (
+                <div className="menu-filtro">
+                  <button onClick={() => { setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todos</button>
+                  {rubrosDisponibles.map(r => (
+                    <button key={r} onClick={() => { setFiltroRubro(r); setMenuFiltroAbierto(null); }}>{r}</button>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Desde</label><input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} /></div>
             <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Hasta</label><input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} /></div>
-            <div className="input-group" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label>Ordenar por</label>
-              <select value={ordenHistorial} onChange={e => setOrdenHistorial(e.target.value)}>
-                <option value="fecha-desc">Más nuevos primero</option>
-                <option value="fecha-asc">Más antiguos primero</option>
-                <option value="cliente-asc">Cliente (A-Z)</option>
-                <option value="cliente-desc">Cliente (Z-A)</option>
-              </select>
+
+            {/* FILTRO DE ORDEN */}
+            <div className="contenedor-popover" style={{ flex: '1 1 150px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Ordenar por</label>
+              <button
+                className="btn-filtro"
+                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'orden' ? null : 'orden'); }}
+              >
+                <span>
+                  {ordenHistorial === 'fecha-asc' ? 'Más antiguos' : ordenHistorial === 'cliente-asc' ? 'Cliente (A-Z)' : ordenHistorial === 'cliente-desc' ? 'Cliente (Z-A)' : 'Más nuevos'}
+                </span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {menuFiltroAbierto === 'orden' && (
+                <div className="menu-filtro">
+                  <button onClick={() => { setOrdenHistorial('fecha-desc'); setMenuFiltroAbierto(null); }}>Más nuevos primero</button>
+                  <button onClick={() => { setOrdenHistorial('fecha-asc'); setMenuFiltroAbierto(null); }}>Más antiguos primero</button>
+                  <button onClick={() => { setOrdenHistorial('cliente-asc'); setMenuFiltroAbierto(null); }}>Cliente (A-Z)</button>
+                  <button onClick={() => { setOrdenHistorial('cliente-desc'); setMenuFiltroAbierto(null); }}>Cliente (Z-A)</button>
+                </div>
+              )}
             </div>
+
             <button className="btn btn-secondary" onClick={limpiarFiltros} style={{ height: '38px', padding: '0 15px' }}>Limpiar</button>
           </div>
         </div>
 
+        {/* LISTA DE TARJETAS */}
         {loadingHistorial ? <p>Cargando...</p> : historialFiltrado.length === 0 ? <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px' }}>No hay presupuestos.</div> : (
           <div className="grid-rubros">
             {historialFiltrado.map(p => {
@@ -711,31 +654,20 @@ function App() {
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
 
                     <div className="acciones-tarjeta">
-
                       <div className="contenedor-popover">
                         <button
                           className={`btn-estado ${p.estado || 'pendiente'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id); }}
                         >
                           <span className={`dot-color dot-${p.estado || 'pendiente'}`}></span>
                           {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                         </button>
-
                         {menuEstadoAbierto === p.id && (
                           <div className="menu-estado">
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'pendiente'); }}>
-                              <span className="dot-color dot-pendiente"></span> Pendiente
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'aprobado'); }}>
-                              <span className="dot-color dot-aprobado"></span> Aprobado
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'rechazado'); }}>
-                              <span className="dot-color dot-rechazado"></span> Rechazado
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'pendiente'); }}><span className="dot-color dot-pendiente"></span> Pendiente</button>
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'aprobado'); }}><span className="dot-color dot-aprobado"></span> Aprobado</button>
+                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'rechazado'); }}><span className="dot-color dot-rechazado"></span> Rechazado</button>
                           </div>
                         )}
                       </div>
@@ -746,15 +678,9 @@ function App() {
 
                       <button className="btn-descarga" onClick={() => descargarPDFDelHistorial(p)}>
                         {esCelular ? (
-                          <>
-                            <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>
-                            Compartir
-                          </>
+                          <><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>Compartir</>
                         ) : (
-                          <>
-                            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                            PDF
-                          </>
+                          <><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>PDF</>
                         )}
                       </button>
                     </div>
@@ -772,23 +698,11 @@ function App() {
   if (rubroSeleccionado) {
     return (
       <div className="app-wrapper">
-        {errorValidacion && (
-          <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>
-        )}
-
-        {toastExito && (
-          <div className="success-banner">
-            <span>✅ {toastExito}</span>
-            <button onClick={() => setToastExito(null)}>✕</button>
-          </div>
-        )}
+        {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
+        {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
 
         <UserHeader
-          perfil={perfil}
-          onVerHistorial={irAHistorial}
-          onVerPerfil={() => setVistaPerfil(true)}
-          onVerReporte={irAReporte}
-          onLogout={handleLogout}
+          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
         />
         <div className="page-header">
           <div>
@@ -802,10 +716,7 @@ function App() {
             <h3>1. Datos del Cliente</h3>
             <div className="input-group"><label>Nombre *</label><input type="text" value={cliente.nombre} onChange={e => { setCliente({ ...cliente, nombre: e.target.value }); setErrorValidacion(null); }} /></div>
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
-            <div className="input-group">
-              <label>Vigencia del Presupuesto (Días)</label>
-              <input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" />
-            </div>
+            <div className="input-group"><label>Vigencia del Presupuesto (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" /></div>
             <div className="input-group"><label>Descripción *</label><textarea rows={2} value={trabajo.descripcion} onChange={e => { setTrabajo({ ...trabajo, descripcion: e.target.value }); setErrorValidacion(null); }} /></div>
             <div className="input-group"><label>Tareas Detalladas</label><textarea rows={2} value={trabajo.tareas} onChange={e => setTrabajo({ ...trabajo, tareas: e.target.value })} /></div>
           </div>
@@ -865,18 +776,9 @@ function App() {
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
-        {toastExito && (
-          <div className="success-banner">
-            <span>✅ {toastExito}</span>
-            <button onClick={() => setToastExito(null)}>✕</button>
-          </div>
-        )}
+        {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         <UserHeader
-          perfil={perfil}
-          onVerHistorial={irAHistorial}
-          onVerPerfil={() => setVistaPerfil(true)}
-          onVerReporte={irAReporte}
-          onLogout={handleLogout}
+          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
         />
         <div className="page-header">
           <div>
@@ -896,18 +798,9 @@ function App() {
   // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
-      {toastExito && (
-        <div className="success-banner">
-          <span>✅ {toastExito}</span>
-          <button onClick={() => setToastExito(null)}>✕</button>
-        </div>
-      )}
+      {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
       <UserHeader
-        perfil={perfil}
-        onVerHistorial={irAHistorial}
-        onVerPerfil={() => setVistaPerfil(true)}
-        onVerReporte={irAReporte}
-        onLogout={handleLogout}
+        perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
       />
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>
       <div className="grid-rubros">
