@@ -1,6 +1,4 @@
-// ============================================================================
-// COMPONENTE PRINCIPAL DE LA APLICACIÓN (App.tsx)
-// ============================================================================
+// App.tsx (Reemplaza todo tu archivo con este)
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from './lib/supabaseClient'
@@ -37,11 +35,11 @@ function App() {
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
-  const [vistaCarrito, setVistaCarrito] = useState(false) // Para ver el carrito antes de generar el PDF
+  const [vistaCarrito, setVistaCarrito] = useState(false)
 
-  // --- ESTADOS DEL CARRITO (Lo que hace la app un sistema de obras) ---
+  // --- ESTADOS DEL CARRITO ---
   const [itemsCarrito, setItemsCarrito] = useState<ItemCarrito[]>([])
-  const [edicionId, setEdicionId] = useState<string | null>(null) // Para saber si estamos editando
+  const [edicionId, setEdicionId] = useState<string | null>(null)
 
   // --- ESTADOS DEL FORMULARIO DEL CLIENTE ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
@@ -53,7 +51,7 @@ function App() {
   const [clientesGuardados, setClientesGuardados] = useState<Cliente[]>([])
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
 
-  // --- ESTADOS DEL RUBRO ACTUAL (Se resetean al agregar al carrito) ---
+  // --- ESTADOS DEL RUBRO ACTUAL ---
   const [valores, setValores] = useState<Record<string, string>>({})
   const [resultados, setResultados] = useState<Record<string, number> | null>(null)
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
@@ -65,8 +63,6 @@ function App() {
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
 
-  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-
   // ==========================================================================
   // 2. EFECTOS
   // ==========================================================================
@@ -77,7 +73,6 @@ function App() {
     }
   }, [toastExito])
 
-  // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -106,7 +101,6 @@ function App() {
     cargarClientes(userId)
   }
 
-  // Carga la libreta de clientes para el autocompletado
   const cargarClientes = async (userId: string) => {
     const { data } = await supabase.from('clientes').select('*').eq('usuario_id', userId)
     if (data) setClientesGuardados(data)
@@ -190,7 +184,6 @@ function App() {
   const calcularPresupuesto = async () => {
     if (!validarMedidas() || !rubroSeleccionado) return;
 
-    // Guardamos los precios en memoria para el usuario
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
@@ -221,24 +214,19 @@ function App() {
   // ==========================================================================
   // 5. LÓGICA DEL CARRITO Y CLIENTES
   // ==========================================================================
-
-  // Agrega el rubro actual al carrito
   const agregarAlCarrito = () => {
     if (!resultados || !rubroSeleccionado) return;
     const nuevoItem: ItemCarrito = { rubro: rubroSeleccionado, valores: { ...valores }, resultados: { ...resultados } };
     setItemsCarrito(prev => [...prev, nuevoItem]);
     setToastExito(`${rubroSeleccionado.nombre} agregado al presupuesto.`);
 
-    // Resetear el formulario del rubro
     setRubroSeleccionado(null); setResultados(null); setValores({});
   }
 
-  // Eliminar un ítem del carrito
   const eliminarDelCarrito = (index: number) => {
     setItemsCarrito(prev => prev.filter((_, i) => i !== index));
   }
 
-  // Autocompletar cliente
   const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
     setCliente(prev => ({ ...prev, nombre: valor }));
@@ -255,7 +243,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 6. GENERACIÓN DE PDF Y GUARDADO (El momento de la verdad)
+  // 6. GENERACIÓN DE PDF Y GUARDADO
   // ==========================================================================
   const generarPDFFinal = async () => {
     if (!perfil || itemsCarrito.length === 0) return;
@@ -263,12 +251,14 @@ function App() {
 
     const numVigencia = Number(vigenciaDias) || 15;
 
-    // Calcular total
+    // Calcular total de forma segura (Evita el error NaN)
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
       Object.entries(item.resultados).forEach(([clave, cantidad]) => {
         const costo = buscarPrecioCercano(clave, item.rubro.costos);
-        totalGeneral += (Number(item.valores[costo?.clave || ''] || 0) * cantidad);
+        // Si el costo no se encuentra, el precio es 0. Evitamos multiplicar undefined.
+        const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
+        totalGeneral += (precioUnitario * Number(cantidad));
       });
     });
     totalGeneral += Number(gastosGenerales) || 0;
@@ -276,12 +266,12 @@ function App() {
     if (session) {
       const datosInsert = {
         usuario_id: session.user.id,
-        rubro_id: itemsCarrito[0].rubro.id, // Guardamos el ID del primer rubro por compatibilidad
+        rubro_id: itemsCarrito[0].rubro.id,
         cliente_nombre: cliente.nombre,
         datos_entrada: {
           cliente,
           trabajo,
-          items: itemsCarrito, // <--- ACÁ GUARDAMOS EL CARRITO COMPLETO
+          items: itemsCarrito, // Guardamos el carrito completo
           gastosGenerales,
           vigenciaDias: numVigencia
         },
@@ -291,14 +281,11 @@ function App() {
       };
 
       if (edicionId) {
-        // MODO EDICIÓN: Actualizamos el registro existente
         await supabase.from('presupuestos').update(datosInsert).eq('id', edicionId);
       } else {
-        // MODO NUEVO: Insertamos
         await supabase.from('presupuestos').insert(datosInsert);
       }
 
-      // Guardar/Actualizar Cliente en la Base de Datos
       if (cliente.nombre.trim()) {
         await supabase.from('clientes').upsert(
           { usuario_id: session.user.id, nombre: cliente.nombre, telefono: cliente.telefono, domicilio: cliente.domicilio },
@@ -312,7 +299,6 @@ function App() {
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
-    // Limpiar todo después de generar
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
     setGastosGenerales(''); setVistaCarrito(false); setVistaHistorial(false);
   }
@@ -330,11 +316,12 @@ function App() {
 
   const editarPresupuesto = (p: PresupuestoGuardado) => {
     setEdicionId(p.id);
-    setCliente(p.datos_entrada.cliente);
-    setTrabajo(p.datos_entrada.trabajo);
-    setGastosGenerales(p.datos_entrada.gastosGenerales || '');
-    setVigenciaDias(p.datos_entrada.vigenciaDias ? p.datos_entrada.vigenciaDias.toString() : '15');
-    setItemsCarrito(p.datos_entrada.items || []);
+    // Agregamos los signos de interrogación (?) para evitar errores si datos_entrada no existe
+    setCliente(p.datos_entrada?.cliente || { nombre: '', domicilio: '', telefono: '' });
+    setTrabajo(p.datos_entrada?.trabajo || { descripcion: '', tareas: '' });
+    setGastosGenerales(p.datos_entrada?.gastosGenerales || '');
+    setVigenciaDias(p.datos_entrada?.vigenciaDias ? p.datos_entrada.vigenciaDias.toString() : '15');
+    setItemsCarrito(p.datos_entrada?.items || []);
     setVistaHistorial(false);
     setVistaCarrito(true);
   }
@@ -344,7 +331,6 @@ function App() {
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
   }
 
-  // Filtro básico del historial
   const historialFiltrado = useMemo(() => {
     let filtrado = [...historial];
     if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
@@ -407,7 +393,6 @@ function App() {
     )
   }
 
-  // PANTALLA 3: EL CARRITO (Resumen antes de PDF)
   if (vistaCarrito) {
     return (
       <div className="app-wrapper">
@@ -424,13 +409,11 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
-          {/* PANEL 1: DATOS DEL CLIENTE CON AUTOCOMPLETADO */}
           <div className="panel panel-cliente" style={{ position: 'relative' }}>
             <h3>1. Datos del Cliente</h3>
             <div className="input-group">
               <label>Nombre (escribí para buscar) *</label>
               <input type="text" value={cliente.nombre} onChange={handleClienteChange} placeholder="Ej: Juan Pérez" autoComplete="off" />
-              {/* Lista de sugerencias */}
               {mostrarSugerencias && cliente.nombre.length > 1 && (
                 <ul className="sugerencias-clientes">
                   {clientesGuardados
@@ -450,7 +433,6 @@ function App() {
             <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} /></div>
           </div>
 
-          {/* PANEL 2: LISTA DEL CARRITO */}
           <div className="panel panel-resultados" style={{ gridColumn: 'span 2' }}>
             <h3>2. Detalle del Presupuesto</h3>
             {itemsCarrito.length === 0 ? (
@@ -481,7 +463,6 @@ function App() {
           </div>
         </div>
 
-        {/* BOTÓN DE GENERAR PDF FINAL */}
         {itemsCarrito.length > 0 && (
           <div className="pdf-action-container" style={{ maxWidth: '600px' }}>
             <button className="btn btn-success" style={{ width: '100%', padding: '15px', fontSize: '1.1rem' }} onClick={generarPDFFinal}>
@@ -493,7 +474,6 @@ function App() {
     )
   }
 
-  // PANTALLA 4: HISTORIAL CON MINI-CRM
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -506,7 +486,6 @@ function App() {
           </button>
         </div>
 
-        {/* BARRA DE FILTROS SIMPLE */}
         <div className="panel panel-filtros">
           <div style={{ display: 'flex', gap: '15px' }}>
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
@@ -522,43 +501,46 @@ function App() {
           </div>
         </div>
 
-        {/* TARJETAS */}
-        {historialFiltrado.map(p => {
-          const fechaCreacion = new Date(p.creado_en);
-          const hoy = new Date();
-          const diasDiferencia = Math.floor((hoy.getTime() - fechaCreacion.getTime()) / (1000 * 3600 * 24));
-          const esViejo = p.estado === 'pendiente' && diasDiferencia >= 15;
+        {/* ACÁ USAMOS loadingHistorial para sacar el error de TypeScript */}
+        {loadingHistorial ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-light)' }}>Cargando historial...</div>
+        ) : (
+          historialFiltrado.map(p => {
+            const fechaCreacion = new Date(p.creado_en);
+            const hoy = new Date();
+            const diasDiferencia = Math.floor((hoy.getTime() - fechaCreacion.getTime()) / (1000 * 3600 * 24));
+            const esViejo = p.estado === 'pendiente' && diasDiferencia >= 15;
 
-          return (
-            <div key={p.id} className="panel" style={{ padding: '20px', marginBottom: '15px', borderTop: esViejo ? '4px solid #f97316' : undefined }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <strong style={{ fontSize: '1.1rem' }}>Cliente: {p.cliente_nombre}</strong>
-                <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-                <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="btn btn-secondary" onClick={() => editarPresupuesto(p)}>✏️ Editar</button>
-                  <select
-                    className={`btn-estado ${p.estado}`}
-                    value={p.estado}
-                    onChange={(e) => actualizarEstado(p.id, e.target.value)}
-                    style={{ padding: '6px', borderRadius: '6px', border: '1px solid #ccc' }}
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="rechazado">Rechazado</option>
-                  </select>
+            return (
+              <div key={p.id} className="panel" style={{ padding: '20px', marginBottom: '15px', borderTop: esViejo ? '4px solid #f97316' : undefined }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <strong style={{ fontSize: '1.1rem' }}>Cliente: {p.cliente_nombre}</strong>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+                  <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-secondary" onClick={() => editarPresupuesto(p)}>✏️ Editar</button>
+                    <select
+                      className={`btn-estado ${p.estado}`}
+                      value={p.estado}
+                      onChange={(e) => actualizarEstado(p.id, e.target.value)}
+                      style={{ padding: '6px', borderRadius: '6px', border: '1px solid #ccc' }}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="aprobado">Aprobado</option>
+                      <option value="rechazado">Rechazado</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })
+        )}
       </div>
     )
   }
 
-  // PANTALLA 5: FORMULARIO DE RUBRO
   if (rubroSeleccionado) {
     return (
       <div className="app-wrapper">
@@ -636,12 +618,10 @@ function App() {
     )
   }
 
-  // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
       <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
 
-      {/* Si hay items en el carrito, mostramos un aviso flotante para ir a pagar */}
       {itemsCarrito.length > 0 && (
         <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 999 }}>
           <button className="btn btn-primary" onClick={() => setVistaCarrito(true)} style={{ padding: '15px 25px', borderRadius: '30px', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
