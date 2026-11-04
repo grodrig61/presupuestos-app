@@ -62,15 +62,19 @@ function App() {
 
   // --- ESTADOS DEL HISTORIAL ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
+  // Usamos el guion bajo para ignorar la variable de lectura y evitar el error de TypeScript
   const [, setLoadingHistorial] = useState(false)
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
+
+  // --- ESTADO PARA EL POPOVER DEL FILTRO DE ESTADO ---
   const [menuFiltroAbierto, setMenuFiltroAbierto] = useState(false)
 
   // ==========================================================================
   // 2. EFECTOS
   // ==========================================================================
 
+  // Efecto para ocultar el cartel de éxito (Toast)
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -78,6 +82,7 @@ function App() {
     }
   }, [toastExito])
 
+  // Cerrar menús al hacer clic afuera
   useEffect(() => {
     const cerrarMenus = () => {
       setMenuFiltroAbierto(false)
@@ -87,6 +92,7 @@ function App() {
     return () => document.removeEventListener('click', cerrarMenus)
   }, [])
 
+  // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -115,6 +121,7 @@ function App() {
     cargarClientes(userId)
   }
 
+  // Carga la libreta de clientes para el autocompletado
   const cargarClientes = async (userId: string) => {
     const { data } = await supabase.from('clientes').select('*').eq('usuario_id', userId)
     if (data) setClientesGuardados(data)
@@ -198,6 +205,7 @@ function App() {
   const calcularPresupuesto = async () => {
     if (!validarMedidas() || !rubroSeleccionado) return;
 
+    // Guardamos los precios en memoria para el usuario
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
@@ -229,19 +237,23 @@ function App() {
   // 5. LÓGICA DEL CARRITO Y CLIENTES
   // ==========================================================================
 
+  // Agrega el rubro actual al carrito
   const agregarAlCarrito = () => {
     if (!resultados || !rubroSeleccionado) return;
     const nuevoItem: ItemCarrito = { rubro: rubroSeleccionado, valores: { ...valores }, resultados: { ...resultados } };
     setItemsCarrito(prev => [...prev, nuevoItem]);
     setToastExito(`${rubroSeleccionado.nombre} agregado al presupuesto.`);
 
+    // Resetear el formulario del rubro
     setRubroSeleccionado(null); setResultados(null); setValores({});
   }
 
+  // Eliminar un ítem del carrito
   const eliminarDelCarrito = (index: number) => {
     setItemsCarrito(prev => prev.filter((_, i) => i !== index));
   }
 
+  // Autocompletar cliente
   const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
     setCliente(prev => ({ ...prev, nombre: valor }));
@@ -258,7 +270,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 6. GENERACIÓN DE PDF Y GUARDADO
+  // 6. GENERACIÓN DE PDF Y GUARDADO (El momento de la verdad)
   // ==========================================================================
   const generarPDFFinal = async () => {
     if (!perfil || itemsCarrito.length === 0) return;
@@ -266,6 +278,7 @@ function App() {
 
     const numVigencia = Number(vigenciaDias) || 15;
 
+    // Calcular total
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
       Object.entries(item.resultados).forEach(([clave, cantidad]) => {
@@ -278,12 +291,12 @@ function App() {
     if (session) {
       const datosInsert = {
         usuario_id: session.user.id,
-        rubro_id: itemsCarrito[0].rubro.id,
+        rubro_id: itemsCarrito[0].rubro.id, // Guardamos el ID del primer rubro por compatibilidad
         cliente_nombre: cliente.nombre,
         datos_entrada: {
           cliente,
           trabajo,
-          items: itemsCarrito,
+          items: itemsCarrito, // <--- ACÁ GUARDAMOS EL CARRITO COMPLETO
           gastosGenerales,
           vigenciaDias: numVigencia
         },
@@ -293,11 +306,14 @@ function App() {
       };
 
       if (edicionId) {
+        // MODO EDICIÓN: Actualizamos el registro existente
         await supabase.from('presupuestos').update(datosInsert).eq('id', edicionId);
       } else {
+        // MODO NUEVO: Insertamos
         await supabase.from('presupuestos').insert(datosInsert);
       }
 
+      // Guardar/Actualizar Cliente en la Base de Datos
       if (cliente.nombre.trim()) {
         await supabase.from('clientes').upsert(
           { usuario_id: session.user.id, nombre: cliente.nombre, telefono: cliente.telefono, domicilio: cliente.domicilio },
@@ -311,6 +327,7 @@ function App() {
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
+    // Limpiar todo después de generar
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
     setGastosGenerales(''); setVistaCarrito(false); setVistaHistorial(false);
   }
@@ -322,8 +339,8 @@ function App() {
     if (!session) return
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
 
-    // Orden Ascendente según lo solicitado
-    const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: true });
+    // ORDEN DESCENDENTE (ascending: false) -> Los más nuevos primero
+    const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
 
     if (!error && data) setHistorial(data);
     setLoadingHistorial(false)
@@ -345,6 +362,7 @@ function App() {
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
   }
 
+  // Filtro básico del historial
   const historialFiltrado = useMemo(() => {
     let filtrado = [...historial];
     if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
@@ -417,7 +435,7 @@ function App() {
     )
   }
 
-  // PANTALLA 3: EL CARRITO
+  // PANTALLA 3: EL CARRITO (Resumen antes de PDF)
   if (vistaCarrito) {
     return (
       <div className="app-wrapper">
@@ -447,6 +465,7 @@ function App() {
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
+        {/* IMPORTANTE: El botón Volver acá NO vacía el carrito, solo cambia de vista */}
         <UserHeader
           perfil={perfil}
           onVerHistorial={irAHistorial}
@@ -473,11 +492,13 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
+          {/* PANEL 1: DATOS DEL CLIENTE CON AUTOCOMPLETADO */}
           <div className="panel panel-cliente" style={{ position: 'relative' }}>
             <h3>1. Datos del Cliente</h3>
             <div className="input-group">
               <label>Nombre (escribí para buscar) *</label>
               <input type="text" value={cliente.nombre} onChange={handleClienteChange} onClick={(e) => e.stopPropagation()} placeholder="Ej: Juan Pérez" autoComplete="off" />
+              {/* Lista de sugerencias */}
               {mostrarSugerencias && cliente.nombre.length > 1 && (
                 <ul className="sugerencias-clientes">
                   {clientesGuardados
@@ -497,6 +518,7 @@ function App() {
             <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} /></div>
           </div>
 
+          {/* PANEL 2: LISTA DEL CARRITO */}
           <div className="panel panel-resultados" style={{ gridColumn: 'span 2' }}>
             <h3>2. Detalle del Presupuesto</h3>
             {itemsCarrito.length === 0 ? (
@@ -527,6 +549,7 @@ function App() {
           </div>
         </div>
 
+        {/* BOTÓN DE GENERAR PDF FINAL */}
         {itemsCarrito.length > 0 && (
           <div className="pdf-action-container" style={{ maxWidth: '600px' }}>
             <button className="btn btn-success" style={{ width: '100%', padding: '15px', fontSize: '1.1rem' }} onClick={generarPDFFinal}>
@@ -538,7 +561,7 @@ function App() {
     )
   }
 
-  // PANTALLA 4: HISTORIAL
+  // PANTALLA 4: HISTORIAL CON MINI-CRM
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -561,19 +584,26 @@ function App() {
           </button>
         </div>
 
+        {/* BARRA DE FILTROS (CON POPOVER MODERNO) */}
         <div className="panel panel-filtros">
           <div style={{ display: 'flex', gap: '15px' }}>
+
+            {/* Filtro Buscar Cliente */}
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Buscar Cliente</label>
               <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
             </div>
 
+            {/* Filtro de Estado (Popover) */}
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Estado</label>
               <div className="contenedor-popover">
                 <button
                   className="btn-filtro"
-                  onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(!menuFiltroAbierto); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuFiltroAbierto(!menuFiltroAbierto);
+                  }}
                 >
                   <span>
                     {filtroEstado === 'pendiente' ? 'Pendientes' :
@@ -582,6 +612,7 @@ function App() {
                   </span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
+
                 {menuFiltroAbierto && (
                   <div className="menu-filtro">
                     <button onClick={() => { setFiltroEstado(''); setMenuFiltroAbierto(false); }}>Todos</button>
@@ -592,10 +623,11 @@ function App() {
                 )}
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* GRILLA DE 2 COLUMNAS */}
+        {/* TARJETAS EN GRILLA (2 POR FILA RESPONSIVE) */}
         <div className="grid-rubros">
           {historialFiltrado.map(p => {
             const fechaCreacion = new Date(p.creado_en);
