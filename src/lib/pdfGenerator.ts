@@ -21,6 +21,7 @@ export const descargarPDF = async (
     const marginLeft = 40
     const marginRight = width - 40
 
+    // Cargar Logo (si existe)
     if (perfilData.logo_url) {
         try {
             const response = await fetch(perfilData.logo_url)
@@ -33,6 +34,7 @@ export const descargarPDF = async (
         } catch (e) { console.log('Error cargando logo', e) }
     }
 
+    // Encabezado
     const titulo = 'PRESUPUESTO DE OBRA'
     const tituloWidth = fontBold.widthOfTextAtSize(titulo, 18)
     page.drawText(titulo, { x: marginRight - tituloWidth, y: y, size: 18, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
@@ -49,12 +51,14 @@ export const descargarPDF = async (
     page.drawLine({ start: { x: marginLeft, y }, end: { x: marginRight, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
     y -= 25
 
+    // Datos del Cliente
     page.drawText('DATOS DEL CLIENTE', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 15
     page.drawText(`Nombre: ${clienteData.nombre}`, { x: marginLeft, y, size: 9, font })
     page.drawText(`Domicilio: ${clienteData.domicilio}`, { x: marginLeft, y: y - 12, size: 9, font })
     y -= 35
 
+    // Descripción del trabajo
     page.drawText('DESCRIPCIÓN DEL TRABAJO', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 15
 
@@ -73,6 +77,7 @@ export const descargarPDF = async (
     y = drawTextWrapped(`Tareas: ${trabajoData.tareas}`, marginLeft, y, marginRight - marginLeft)
     y -= 20
 
+    // Tabla de materiales
     page.drawText('DETALLE DE MATERIALES Y MANO DE OBRA', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 25
 
@@ -95,7 +100,6 @@ export const descargarPDF = async (
     page.drawLine({ start: { x: colX0, y: headerBottomY }, end: { x: colX4, y: headerBottomY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
     y = headerBottomY - 15;
-
     let totalMateriales = 0
     let lastRowY = y;
 
@@ -148,16 +152,38 @@ export const descargarPDF = async (
 
     page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', { x: marginLeft, y: 30, size: 7, font, color: rgb(0.5, 0.5, 0.5) })
 
+    // --- GENERACIÓN DEL ARCHIVO Y COMPARTIR ---
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
 
     const hoy = new Date()
     const fechaArchivo = `${String(hoy.getDate()).padStart(2, '0')}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${hoy.getFullYear()}`
     const nombreCliente = clienteData.nombre ? clienteData.nombre.replace(/ /g, '_') : 'Cliente'
+    const nombreArchivo = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
 
+    // Creamos el archivo para compartir
+    const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
+
+    // Intentamos usar la API Nativa de Compartir (Web Share API)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: 'Presupuesto ObraFácil',
+                text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${perfilData.nombre}. Cualquier duda quedo a disposición.`
+            });
+            return; // Si se compartió con éxito, terminamos acá.
+        } catch (error) {
+            console.log('El usuario canceló o hubo un error al compartir:', error);
+            // Si cancela, no hacemos nada más. Si falla, cae al fallback.
+        }
+    }
+
+    // FALLBACK: Si el celular es viejo o está en PC, descargamos el PDF normalmente.
+    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
+    link.download = nombreArchivo
     link.click()
+    URL.revokeObjectURL(url)
 }

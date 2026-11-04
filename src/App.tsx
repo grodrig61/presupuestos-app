@@ -470,7 +470,9 @@ function App() {
             ) : <div className="empty-state">Completá los datos y presioná "Calcular".</div>}
           </div>
         </div>
-        {resultados && <div className="pdf-action-container"><button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>📄 Generar PDF</button></div>}
+        {resultados && <div className="pdf-action-container"><button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
+          📲 Generar y Compartir
+        </button></div>}
       </div>
     )
   }
