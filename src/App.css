@@ -1630,3 +1630,40 @@ body {
   background-color: #128C7E;
   transform: scale(1.05);
 }
+
+/* Lista de sugerencias para autocompletar clientes */
+.sugerencias-clientes {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  z-index: 999;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.sugerencias-clientes li {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.sugerencias-clientes li:hover {
+  background-color: var(--bg);
+}
+
+.sugerencias-clientes li:last-child {
+  border-bottom: none;
+}
+
+.sugerencias-clientes small {
+  color: var(--text-light);
+}
