@@ -37,8 +37,12 @@ function App() {
   const [vistaReporte, setVistaReporte] = useState(false)
   const [vistaCarrito, setVistaCarrito] = useState(false)
 
-  // --- ESTADOS DEL CARRITO ---
-  const [itemsCarrito, setItemsCarrito] = useState<ItemCarrito[]>([])
+  // --- ESTADOS DEL CARRITO (CON PERSISTENCIA EN LOCALSTORAGE) ---
+  // Inicializamos el estado leyendo de localStorage, si no hay nada, es un array vacío
+  const [itemsCarrito, setItemsCarrito] = useState<ItemCarrito[]>(() => {
+    const guardado = localStorage.getItem('obrafacil_carrito')
+    return guardado ? JSON.parse(guardado) : []
+  })
   const [edicionId, setEdicionId] = useState<string | null>(null)
 
   // --- ESTADOS DEL FORMULARIO DEL CLIENTE ---
@@ -66,12 +70,25 @@ function App() {
   // ==========================================================================
   // 2. EFECTOS
   // ==========================================================================
+
+  // Efecto para guardar el carrito en localStorage cada vez que cambie
+  useEffect(() => {
+    localStorage.setItem('obrafacil_carrito', JSON.stringify(itemsCarrito))
+  }, [itemsCarrito])
+
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
       return () => clearTimeout(timer)
     }
   }, [toastExito])
+
+  // Cerrar sugerencias al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = () => setMostrarSugerencias(false);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -217,9 +234,17 @@ function App() {
   const agregarAlCarrito = () => {
     if (!resultados || !rubroSeleccionado) return;
     const nuevoItem: ItemCarrito = { rubro: rubroSeleccionado, valores: { ...valores }, resultados: { ...resultados } };
-    setItemsCarrito(prev => [...prev, nuevoItem]);
+
+    // Usamos la función de actualización para garantizar que se acumulen
+    setItemsCarrito(prev => {
+      const nuevoArray = [...prev, nuevoItem];
+      console.log("Carrito actualizado:", nuevoArray); // Para depurar en consola
+      return nuevoArray;
+    });
+
     setToastExito(`${rubroSeleccionado.nombre} agregado al presupuesto.`);
 
+    // Reseteamos el rubro actual para volver a la pantalla anterior
     setRubroSeleccionado(null); setResultados(null); setValores({});
   }
 
@@ -251,12 +276,10 @@ function App() {
 
     const numVigencia = Number(vigenciaDias) || 15;
 
-    // Calcular total de forma segura (Evita el error NaN)
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
       Object.entries(item.resultados).forEach(([clave, cantidad]) => {
         const costo = buscarPrecioCercano(clave, item.rubro.costos);
-        // Si el costo no se encuentra, el precio es 0. Evitamos multiplicar undefined.
         const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
         totalGeneral += (precioUnitario * Number(cantidad));
       });
@@ -299,8 +322,14 @@ function App() {
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
-    setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
-    setGastosGenerales(''); setVistaCarrito(false); setVistaHistorial(false);
+    // Limpiamos todo DESPUÉS de generar el PDF exitosamente
+    setItemsCarrito([]);
+    setEdicionId(null);
+    setCliente({ nombre: '', telefono: '', domicilio: '' });
+    setTrabajo({ descripcion: '', tareas: '' });
+    setGastosGenerales('');
+    setVistaCarrito(false);
+    setVistaHistorial(false);
   }
 
   // ==========================================================================
@@ -316,7 +345,6 @@ function App() {
 
   const editarPresupuesto = (p: PresupuestoGuardado) => {
     setEdicionId(p.id);
-    // Agregamos los signos de interrogación (?) para evitar errores si datos_entrada no existe
     setCliente(p.datos_entrada?.cliente || { nombre: '', domicilio: '', telefono: '' });
     setTrabajo(p.datos_entrada?.trabajo || { descripcion: '', tareas: '' });
     setGastosGenerales(p.datos_entrada?.gastosGenerales || '');
@@ -399,13 +427,20 @@ function App() {
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
-        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => { setVistaCarrito(false); setEdicionId(null); setItemsCarrito([]); }} />
+        {/* ACÁ CORREGIMOS EL BOTÓN VOLVER: Ya no vacía el carrito */}
+        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaCarrito(false)} />
 
         <div className="page-header">
           <div>
             <h1>{edicionId ? 'Editando Presupuesto' : 'Armar Presupuesto de Obra'}</h1>
             <p>Revisá los ítems antes de generar el PDF.</p>
           </div>
+          {/* Botón para vaciar el carrito manualmente si el usuario quiere */}
+          {itemsCarrito.length > 0 && (
+            <button className="btn btn-secondary" style={{ color: 'red', borderColor: 'red' }} onClick={() => { if (confirm('¿Seguro que querés vaciar el presupuesto?')) setItemsCarrito([]) }}>
+              🗑️ Vaciar Carrito
+            </button>
+          )}
         </div>
 
         <div className="dashboard-grid">
@@ -413,7 +448,7 @@ function App() {
             <h3>1. Datos del Cliente</h3>
             <div className="input-group">
               <label>Nombre (escribí para buscar) *</label>
-              <input type="text" value={cliente.nombre} onChange={handleClienteChange} placeholder="Ej: Juan Pérez" autoComplete="off" />
+              <input type="text" value={cliente.nombre} onChange={handleClienteChange} onClick={(e) => e.stopPropagation()} placeholder="Ej: Juan Pérez" autoComplete="off" />
               {mostrarSugerencias && cliente.nombre.length > 1 && (
                 <ul className="sugerencias-clientes">
                   {clientesGuardados
@@ -501,7 +536,6 @@ function App() {
           </div>
         </div>
 
-        {/* ACÁ USAMOS loadingHistorial para sacar el error de TypeScript */}
         {loadingHistorial ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-light)' }}>Cargando historial...</div>
         ) : (
@@ -585,12 +619,12 @@ function App() {
         </div>
 
         <div className="pdf-action-container" style={{ maxWidth: '100%', display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '30px' }}>
-          <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ width: 'auto', padding: '12px 30px' }}>
+          <button type="button" className="btn btn-primary" onClick={calcularPresupuesto} style={{ width: 'auto', padding: '12px 30px' }}>
             Calcular Materiales
           </button>
 
           {resultados && (
-            <button className="btn btn-success" onClick={agregarAlCarrito} style={{ width: 'auto', padding: '12px 30px', backgroundColor: '#0ea5e9' }}>
+            <button type="button" className="btn btn-success" onClick={agregarAlCarrito} style={{ width: 'auto', padding: '12px 30px', backgroundColor: '#0ea5e9' }}>
               + Agregar al Presupuesto
             </button>
           )}
