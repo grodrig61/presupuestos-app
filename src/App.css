@@ -136,6 +136,7 @@ body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  /* Evita que elementos internos (como gráficos) rompan el panel */
 }
 
 /* Línea de color decorativa superior en cada panel */
