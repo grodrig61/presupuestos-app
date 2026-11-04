@@ -1,3 +1,9 @@
+// ============================================================================
+// COMPONENTE PRINCIPAL DE LA APLICACIÓN (App.tsx)
+// Este archivo maneja el estado global, la navegación, la autenticación
+// y la lógica de negocio de ObraFácil.
+// ============================================================================
+
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from './lib/supabaseClient'
 import { descargarPDF } from './lib/pdfGenerator'
@@ -9,17 +15,17 @@ import './App.css'
 
 function App() {
   // ==========================================================================
-  // ESTADOS GLOBALES DE LA APP
+  // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
-  const [session, setSession] = useState<any>(null)
+
+  // --- Estados de Autenticación y Sesión ---
+  const [session, setSession] = useState<any>(null) // Guarda la sesión activa de Supabase
+  const [authLoading, setAuthLoading] = useState(true) // Indica si se está verificando la sesión
+  const [email, setEmail] = useState('') // Guarda el email para el login
+  const [mensajeAuth, setMensajeAuth] = useState('') // Mensajes de éxito o error en el login
+
+  // --- Estados del Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-
-  // Estados para el Login (Magic Link)
-  const [email, setEmail] = useState('')
-  const [mensajeAuth, setMensajeAuth] = useState('')
-
-  // Estados para el formulario de Perfil
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -27,33 +33,32 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
-  // Estados para la navegación y datos de la app
-  const [familias, setFamilias] = useState<Familia[]>([])
+  // --- Estados de Navegación y Datos ---
+  const [familias, setFamilias] = useState<Familia[]>([]) // Datos del JSON de Supabase
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
-  const [loadingData, setLoadingData] = useState(true)
+  const [loadingData, setLoadingData] = useState(true) // Carga inicial de los rubros
 
-  // Estados para el formulario de cálculo del presupuesto
+  // --- Estados del Formulario de Presupuesto ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
-  const [valores, setValores] = useState<Record<string, string>>({})
+  const [valores, setValores] = useState<Record<string, string>>({}) // Medidas y precios ingresados
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
-  const [vigenciaDias, setVigenciaDias] = useState<string>('15') // Estado para los días de validez
-  const [resultados, setResultados] = useState<Record<string, number> | null>(null)
-  const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
+  const [vigenciaDias, setVigenciaDias] = useState<string>('15') // Días de validez (por defecto 15)
+  const [resultados, setResultados] = useState<Record<string, number> | null>(null) // Resultados del motor matemático
+  const [errorValidacion, setErrorValidacion] = useState<string | null>(null) // Mensajes de error
 
-  // Estado para mostrar notificaciones flotantes (Toasts)
+  // --- Estado para Notificaciones (Toasts) ---
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // Estados para las diferentes vistas
+  // --- Estados de Vistas (Pantallas) ---
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
 
-  // Estados para el historial y sus filtros
+  // --- Estados del Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
-
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
@@ -62,10 +67,10 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // Detectamos si el usuario está en un celular para adaptar los botones
+  // Detecta si el usuario está en un dispositivo móvil para adaptar la UI
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Efecto para que el cartel de éxito desaparezca solo después de 4 segundos
+  // Efecto para ocultar el cartel de éxito después de 4 segundos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -73,7 +78,7 @@ function App() {
     }
   }, [toastExito])
 
-  // Efecto de inicialización: verifica si hay una sesión activa al cargar la app
+  // Efecto de inicialización: Verifica si hay sesión al cargar la app
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -81,7 +86,7 @@ function App() {
       else setAuthLoading(false)
     })
 
-    // Escuchamos cambios en la autenticación (login/logout)
+    // Escucha cambios en la autenticación (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       if (session) cargarPerfil(session.user.id)
@@ -89,7 +94,10 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Función para cargar los datos del perfil del usuario desde Supabase
+  // ==========================================================================
+  // 2. FUNCIONES DE AUTENTICACIÓN Y PERFIL
+  // ==========================================================================
+
   const cargarPerfil = async (userId: string) => {
     const { data } = await supabase.from('perfiles').select('*').eq('id', userId).single()
     if (data) {
@@ -100,7 +108,6 @@ function App() {
     cargarFamilias()
   }
 
-  // Función para enviar el enlace mágico de inicio de sesión
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setMensajeAuth('Enviando enlace...')
@@ -109,13 +116,12 @@ function App() {
     else setMensajeAuth('¡Revisá tu correo! Te enviamos un enlace mágico para ingresar.')
   }
 
-  // Función para cerrar sesión y limpiar todos los estados
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setEmail(''); setMensajeAuth('')
+    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null);
+    setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setEmail(''); setMensajeAuth('')
   }
 
-  // Función para guardar o actualizar los datos del perfil
   const guardarPerfil = async (e: React.FormEvent) => {
     e.preventDefault()
     setGuardandoPerfil(true)
@@ -150,20 +156,22 @@ function App() {
     } finally { setGuardandoPerfil(false) }
   }
 
-  // Función para cargar el JSON de configuración (Familias y Rubros)
+  // ==========================================================================
+  // 3. FUNCIONES DE LA APP Y CÁLCULOS
+  // ==========================================================================
+
   async function cargarFamilias() {
     const { data, error } = await supabase.from('configuracion').select('esquema').eq('id', 'esquema_global').single()
     if (!error && data?.esquema?.familias) setFamilias(data.esquema.familias)
     setLoadingData(false)
   }
 
-  // Función que se ejecuta al seleccionar un rubro: carga los precios guardados
   const handleSeleccionarRubro = async (rubro: Rubro) => {
     setRubroSeleccionado(rubro); setResultados(null); setGastosGenerales(''); setErrorValidacion(null); setValores({});
-    setVigenciaDias('15') // Reseteamos la vigencia a 15 días por defecto
+    setVigenciaDias('15') // Reseteamos la vigencia a 15 días cada vez que entra a un rubro
     if (!session) return;
 
-    // Buscamos los precios anteriores del usuario para este rubro
+    // Cargar precios guardados (Memoria de precios)
     const { data, error } = await supabase.from('precios_usuario').select('clave_atributo, valor').eq('usuario_id', session.user.id).eq('rubro_id', rubro.id);
     if (!error && data) {
       const preciosGuardados: Record<string, string> = {};
@@ -172,10 +180,8 @@ function App() {
     }
   }
 
-  // Función para actualizar los valores de los inputs del formulario
   const handleInputChange = (clave: string, valor: string) => { setValores(prev => ({ ...prev, [clave]: valor })) }
 
-  // Función de validación de los campos obligatorios del rubro
   const validarMedidas = (): boolean => {
     if (!rubroSeleccionado) return false;
     setErrorValidacion(null);
@@ -189,7 +195,6 @@ function App() {
     return true;
   }
 
-  // Función de validación antes de generar el PDF
   const validarParaPDF = (): boolean => {
     if (!validarMedidas() || !rubroSeleccionado) return false;
     if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return false; }
@@ -207,11 +212,10 @@ function App() {
     return true;
   }
 
-  // Función que ejecuta el motor matemático para calcular los resultados
   const calcularPresupuesto = async () => {
     if (!validarMedidas() || !rubroSeleccionado) return;
 
-    // Guardamos automáticamente los precios en la nube (memoria de precios)
+    // Guardar precios automáticamente en la nube
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
@@ -222,7 +226,7 @@ function App() {
       } catch (err) { console.error("No se guardaron precios", err); }
     }
 
-    // Evaluamos las fórmulas del JSON
+    // Ejecutar las fórmulas matemáticas
     const nuevoContexto: Record<string, any> = {}
     Object.keys(valores).forEach(key => {
       const num = Number(valores[key])
@@ -243,14 +247,17 @@ function App() {
     setResultados(resultadosCalculados); setErrorValidacion(null);
   }
 
-  // Función para generar y compartir el PDF
+  // ==========================================================================
+  // 4. GENERACIÓN DE PDF Y GUARDADO
+  // ==========================================================================
+
   const generarPDF = async () => {
     if (!resultados || !rubroSeleccionado || !perfil) return
     if (!validarParaPDF()) return;
 
     const numVigencia = Number(vigenciaDias) || 15;
 
-    // Guardamos el presupuesto en el historial de Supabase
+    // Guardar en el historial de Supabase
     if (session) {
       let totalMateriales = 0;
       Object.entries(resultados).forEach(([clave, cantidad]) => {
@@ -262,22 +269,28 @@ function App() {
       const familiaActual = familias.find(f => f.rubros.some(r => r.id === rubroSeleccionado.id));
 
       await supabase.from('presupuestos').insert({
-        usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, cliente_nombre: cliente.nombre,
+        usuario_id: session.user.id,
+        rubro_id: rubroSeleccionado.id,
+        cliente_nombre: cliente.nombre,
         datos_entrada: { cliente, trabajo, valores, gastosGenerales, vigenciaDias: numVigencia, rubroNombre: rubroSeleccionado.nombre, familiaNombre: familiaActual?.nombre || 'Sin Categoría' },
-        resultado_calculo: { resultados, totalGeneral }, total: totalGeneral,
-        estado: 'pendiente' // Nace en estado pendiente
+        resultado_calculo: { resultados, totalGeneral },
+        total: totalGeneral,
+        estado: 'pendiente' // Todo presupuesto nace pendiente
       });
     }
 
-    // Llamamos al generador de PDF
+    // Llamar a la función que dibuja y comparte/descarga el PDF
     await descargarPDF(
       perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
-      numVigencia, new Date().toISOString(),
+      numVigencia, new Date().toISOString(), // Le pasamos la vigencia y la fecha actual
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
   }
 
-  // Función para ir a la pantalla del historial y cargar los datos
+  // ==========================================================================
+  // 5. LÓGICA DEL HISTORIAL, REPORTES Y ACCIONES
+  // ==========================================================================
+
   const irAHistorial = async () => {
     if (!session) return;
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false);
@@ -286,12 +299,10 @@ function App() {
     setLoadingHistorial(false);
   }
 
-  // Función para ir al reporte de gestión
   const irAReporte = async () => {
     if (!session) return;
     setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false);
 
-    // Si no tenemos el historial cargado aún, lo traemos
     if (historial.length === 0) {
       setLoadingData(true);
       const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
@@ -300,23 +311,22 @@ function App() {
     }
   }
 
-  // Función para descargar un PDF desde el historial
   const descargarPDFDelHistorial = async (presupuesto: PresupuestoGuardado) => {
     if (!perfil) return;
     const { datos_entrada, resultado_calculo, rubro_id, creado_en } = presupuesto;
     const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
     const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
+
     if (rubroOriginal) {
       const vigencia = datos_entrada.vigenciaDias || 15;
       await descargarPDF(
         perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
-        vigencia, creado_en, // Usamos la fecha original del presupuesto para calcular la validez
+        vigencia, creado_en, // Usamos la fecha original para calcular el vencimiento real de ese día
         () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
       );
     }
   }
 
-  // Función para clonar un presupuesto viejo en el formulario
   const duplicarPresupuesto = (presupuesto: PresupuestoGuardado) => {
     const { datos_entrada, resultado_calculo, rubro_id } = presupuesto;
     const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
@@ -338,16 +348,19 @@ function App() {
     }
   }
 
-  // Función para actualizar el estado del presupuesto (Pendiente/Aprobado/Rechazado)
+  // Actualiza el estado del presupuesto (Pendiente, Aprobado, Rechazado)
   const actualizarEstado = async (id: string, nuevoEstado: string) => {
-    // Actualizamos el estado local para que el cambio sea instantáneo en la pantalla
+    // Actualización local instantánea (Optimistic UI) para que el usuario vea el cambio al toque
     setHistorial(prev => prev.map(p => p.id === id ? { ...p, estado: nuevoEstado as any } : p));
 
-    // Actualizamos el estado en la base de datos de Supabase
+    // Actualización en la base de datos de Supabase
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
   }
 
-  // Filtrado y ordenamiento del historial (se ejecuta en memoria para máxima velocidad)
+  // ==========================================================================
+  // 6. MEMORIZACIÓN (Filtros y Ordenamiento)
+  // ==========================================================================
+
   const historialFiltrado = useMemo(() => {
     let filtrado = [...historial];
     if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
@@ -368,25 +381,24 @@ function App() {
     return filtrado;
   }, [historial, filtroCliente, filtroCategoria, filtroRubro, filtroEstado, filtroFechaDesde, filtroFechaHasta, ordenHistorial, familias]);
 
-  // Calcula qué rubros mostrar en el filtro dependiendo de la categoría seleccionada
   const rubrosDisponibles = useMemo(() => {
     if (!filtroCategoria) return [];
     const familia = familias.find(f => f.nombre === filtroCategoria);
     return familia ? familia.rubros.map(r => r.nombre) : [];
   }, [filtroCategoria, familias]);
 
-  // Limpia todos los filtros aplicados
   const limpiarFiltros = () => {
     setFiltroCliente(''); setFiltroCategoria(''); setFiltroRubro(''); setFiltroEstado(''); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setOrdenHistorial('fecha-desc');
   }
 
   // ==========================================================================
-  // RENDERIZADO CONDICIONAL DE PANTALLAS
+  // 7. RENDERIZADO DE PANTALLAS (Interfaz de Usuario)
   // ==========================================================================
 
+  // Pantalla de carga inicial
   if (authLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando sistema...</div>
 
-  // PANTALLA 1: LOGIN
+  // --- PANTALLA 1: LOGIN ---
   if (!session) {
     return (
       <div className="auth-container">
@@ -406,7 +418,7 @@ function App() {
     )
   }
 
-  // PANTALLA 2: PERFIL (Nuevo o Edición)
+  // --- PANTALLA 2: COMPLETAR / EDITAR PERFIL ---
   if (!perfil || vistaPerfil) {
     return (
       <div className="auth-container">
@@ -442,9 +454,10 @@ function App() {
     )
   }
 
+  // Si los datos base no cargaron, mostramos mensaje
   if (loadingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos...</div>
 
-  // PANTALLA 3: REPORTE DE GESTIÓN
+  // --- PANTALLA 3: REPORTE DE GESTIÓN ---
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
@@ -464,7 +477,7 @@ function App() {
     )
   }
 
-  // PANTALLA 4: HISTORIAL DE PRESUPUESTOS
+  // --- PANTALLA 4: HISTORIAL DE PRESUPUESTOS ---
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -492,7 +505,6 @@ function App() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
             <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
 
-            {/* Filtro por Estado */}
             <div className="input-group" style={{ flex: '1 1 120px', marginBottom: 0 }}>
               <label>Estado</label>
               <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
@@ -532,7 +544,7 @@ function App() {
           </div>
         </div>
 
-        {/* LISTA DE TARJETAS DE PRESUPUESTOS */}
+        {/* TARJETAS DEL HISTORIAL */}
         {loadingHistorial ? <p>Cargando...</p> : historialFiltrado.length === 0 ? <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px' }}>No hay presupuestos.</div> : (
           <div className="grid-rubros">
             {historialFiltrado.map(p => {
@@ -543,7 +555,7 @@ function App() {
               return (
                 <div key={p.id} className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
 
-                  {/* Fila superior: Categoría, Rubro y Fecha */}
+                  {/* Fila superior: Categoría y Fecha */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '0.85rem', color: 'var(--text-light)', fontWeight: 'bold' }}>
                     <span>{nombreCategoria} &gt; {nombreRubro}</span>
                     <span>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
@@ -555,31 +567,38 @@ function App() {
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
                   </div>
 
-                  {/* Footer: Monto, Selector de Estado, Botones de Acción */}
+                  {/* Footer: Monto, Selector de Estado y Botones de Acción */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
 
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div className="acciones-tarjeta">
 
-                      {/* SELECTOR DE ESTADO CON COLORES DINÁMICOS */}
+                      {/* Selector de estado usando las nuevas clases CSS */}
                       <select
-                        className="select-estado"
+                        className={`select-estado estado-${p.estado || 'pendiente'}`}
                         value={p.estado || 'pendiente'}
                         onChange={(e) => actualizarEstado(p.id, e.target.value)}
-                        style={{
-                          backgroundColor: p.estado === 'aprobado' ? '#bbf7d0' : p.estado === 'rechazado' ? '#fecaca' : '#fef08a',
-                          color: p.estado === 'aprobado' ? '#166534' : p.estado === 'rechazado' ? '#991b1b' : '#854d0e',
-                          border: 'none'
-                        }}
                       >
-                        <option value="pendiente">🟡 Pendiente</option>
-                        <option value="aprobado">🟢 Aprobado</option>
-                        <option value="rechazado">🔴 Rechazado</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="aprobado">Aprobado</option>
+                        <option value="rechazado">Rechazado</option>
                       </select>
 
-                      <button className="btn btn-secondary" onClick={() => duplicarPresupuesto(p)} style={{ padding: '8px', fontSize: '1rem' }} title="Duplicar Presupuesto">📋</button>
+                      {/* Botón de Duplicar */}
+                      <button
+                        className="btn-icono"
+                        onClick={() => duplicarPresupuesto(p)}
+                        title="Duplicar Presupuesto"
+                      >
+                        📋
+                      </button>
 
-                      <button className="btn btn-primary" onClick={() => descargarPDFDelHistorial(p)} style={{ width: 'auto', padding: '8px 12px' }}>
+                      {/* Botón de Descargar/Compartir */}
+                      <button
+                        className="btn-icono accion-principal"
+                        onClick={() => descargarPDFDelHistorial(p)}
+                        title={esCelular ? "Compartir" : "Descargar PDF"}
+                      >
                         {esCelular ? '📲' : '📄'}
                       </button>
                     </div>
@@ -593,7 +612,7 @@ function App() {
     )
   }
 
-  // PANTALLA 5: FORMULARIO DE CÁLCULO
+  // --- PANTALLA 5: FORMULARIO DE CÁLCULO ---
   if (rubroSeleccionado) {
     return (
       <div className="app-wrapper">
@@ -623,13 +642,12 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
-          {/* PANEL 1: DATOS DEL CLIENTE Y VIGENCIA */}
+          {/* PANEL 1: Cliente y Vigencia */}
           <div className="panel panel-cliente">
             <h3>1. Datos del Cliente</h3>
             <div className="input-group"><label>Nombre *</label><input type="text" value={cliente.nombre} onChange={e => { setCliente({ ...cliente, nombre: e.target.value }); setErrorValidacion(null); }} /></div>
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
 
-            {/* NUEVO CAMPO: VIGENCIA DEL PRESUPUESTO */}
             <div className="input-group">
               <label>Vigencia del Presupuesto (Días)</label>
               <input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" />
@@ -639,7 +657,7 @@ function App() {
             <div className="input-group"><label>Tareas Detalladas</label><textarea rows={2} value={trabajo.tareas} onChange={e => setTrabajo({ ...trabajo, tareas: e.target.value })} /></div>
           </div>
 
-          {/* PANEL 2: MEDIDAS */}
+          {/* PANEL 2: Medidas */}
           <div className="panel panel-medidas">
             <h3>2. Medidas</h3>
             {rubroSeleccionado.atributos.map(atributo => (
@@ -657,7 +675,7 @@ function App() {
             ))}
           </div>
 
-          {/* PANEL 3: PRECIOS */}
+          {/* PANEL 3: Precios */}
           <div className="panel panel-precios">
             <h3>3. Precios</h3>
             {rubroSeleccionado.costos.map(costo => (
@@ -669,7 +687,7 @@ function App() {
             <div className="input-group"><label>Gastos Generales</label><input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value)} placeholder="$ 0.00" /></div>
           </div>
 
-          {/* PANEL 4: RESULTADOS */}
+          {/* PANEL 4: Resultados */}
           <div className="panel panel-resultados">
             <h3>4. Resultados</h3>
             <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ marginBottom: '15px' }}>Calcular Totales</button>
@@ -683,7 +701,7 @@ function App() {
           </div>
         </div>
 
-        {/* BOTÓN DE GENERAR PDF */}
+        {/* Botón de generar PDF */}
         {resultados && (
           <div className="pdf-action-container">
             <button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
@@ -695,7 +713,7 @@ function App() {
     )
   }
 
-  // PANTALLA 6: LISTA DE RUBROS DE UNA CATEGORÍA
+  // --- PANTALLA 6: RUBROS DE UNA CATEGORÍA ---
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
@@ -727,7 +745,7 @@ function App() {
     )
   }
 
-  // PANTALLA 7: HOME (LISTA DE FAMILIAS)
+  // --- PANTALLA 7: HOME (LISTA DE FAMILIAS) ---
   return (
     <div className="app-wrapper">
       {toastExito && (
