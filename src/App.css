@@ -1,4 +1,4 @@
-/* Importamos la fuente Inter desde Google Fonts para un diseño moderno */
+/* Importamos la fuente Inter desde Google Fonts para un diseño moderno y legible */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ==========================================
@@ -8,25 +8,25 @@
   --primary: #2563eb;
   /* Azul principal de la marca */
   --bg: #f1f5f9;
-  /* Color de fondo de la app (gris muy claro) */
+  /* Color de fondo general (gris muy claro) */
   --surface: #ffffff;
-  /* Color de fondo de las tarjetas y paneles (blanco) */
+  /* Color de fondo de tarjetas y paneles (blanco) */
   --text: #0f172a;
   /* Color del texto principal (casi negro) */
   --text-light: #64748b;
   /* Color de textos secundarios (gris) */
   --border: #e2e8f0;
-  /* Color de los bordes (gris claro) */
+  /* Color de los bordes divisores */
   --success: #10b981;
-  /* Color verde para botones de éxito (Generar PDF) */
+  /* Color verde para acciones exitosas */
 }
 
 /* ==========================================
-   ESTILOS BASE Y RESETEO
+   RESETEO Y ESTILOS BASE
    ========================================== */
 * {
   box-sizing: border-box;
-  /* Asegura que el padding no aumente el tamaño real de los elementos */
+  /* Asegura que el padding no altere el ancho total de los elementos */
 }
 
 body {
@@ -35,7 +35,7 @@ body {
   background-color: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
-  /* Suaviza las fuentes en pantallas Apple */
+  /* Suaviza las fuentes en pantallas de alta resolución */
 }
 
 #root {
@@ -46,18 +46,19 @@ body {
   text-align: left;
 }
 
-/* Contenedor principal que envuelve toda la app */
+/* Contenedor principal de la aplicación */
 .app-wrapper {
   width: 100%;
   max-width: 1600px;
-  /* Ancho máximo para que no se estire de más en monitores ultra-anchos */
+  /* Ancho máximo para pantallas muy grandes */
   margin: 0 auto;
+  /* Centra el contenido */
   padding: 20px;
   min-height: 100vh;
 }
 
 /* ==========================================
-   CABECERAS DE PÁGINA (Títulos y botones de volver)
+   CABECERAS DE PÁGINA (Títulos)
    ========================================== */
 .page-header {
   text-align: left;
@@ -81,32 +82,31 @@ body {
 }
 
 /* ==========================================
-   GRILLAS DE DISEÑO (Responsive)
+   GRILLAS RESPONSIVE
    ========================================== */
 
-/* Grilla para las tarjetas de selección (Familias y Rubros) */
+/* Grilla para las tarjetas de selección de categorías */
 .grid-rubros {
   display: grid;
   grid-template-columns: 1fr;
-  /* 1 columna en celulares */
+  /* 1 columna por defecto (celulares) */
   gap: 12px;
 }
 
 @media (min-width: 600px) {
   .grid-rubros {
     grid-template-columns: repeat(2, 1fr);
-    /* 2 columnas en tablets */
+    /* 2 columnas en tablets y PC */
   }
 }
 
-/* Grilla para los 4 paneles del formulario de presupuesto */
+/* Grilla para los 4 paneles del formulario de cálculo */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr;
-  /* 1 columna en celulares */
   gap: 15px;
   align-items: stretch;
-  /* Hace que todos los paneles midan lo mismo de alto */
+  /* Iguala la altura de todos los paneles */
 }
 
 @media (min-width: 768px) {
@@ -119,12 +119,12 @@ body {
 @media (min-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: repeat(4, 1fr);
-    /* 4 columnas en PC */
+    /* 4 columnas en pantallas grandes */
   }
 }
 
 /* ==========================================
-   PANELES (Tarjetas blancas de la app)
+   PANELES (Tarjetas blancas)
    ========================================== */
 .panel {
   background: var(--surface);
@@ -138,7 +138,7 @@ body {
   overflow: hidden;
 }
 
-/* Línea de color superior decorativa para cada panel */
+/* Línea de color decorativa superior en cada panel */
 .panel::before {
   content: '';
   position: absolute;
@@ -181,7 +181,44 @@ body {
 }
 
 /* ==========================================
-   INPUTS (Campos de texto, selectores y textareas)
+   TARJETAS DE RESUMEN (KPIs del Reporte)
+   ========================================== */
+.kpi-card {
+  text-align: center;
+  padding: 25px 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.kpi-title {
+  margin: 0;
+  color: var(--text-light);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.kpi-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-top: 10px;
+  word-break: break-word;
+  /* Evita que números muy largos rompan el diseño */
+  line-height: 1.2;
+}
+
+/* Ajuste de fuente para celulares muy pequeños */
+@media (max-width: 400px) {
+  .kpi-value {
+    font-size: 1.4rem;
+  }
+}
+
+/* ==========================================
+   INPUTS Y FORMULARIOS
    ========================================== */
 .input-group {
   display: flex;
@@ -212,7 +249,7 @@ body {
   text-align: left;
 }
 
-/* Efecto visual al hacer foco en un input */
+/* Efecto al seleccionar un input */
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
@@ -238,7 +275,6 @@ body {
   gap: 6px;
 }
 
-/* Botón principal (Azul) - Ej: Calcular Totales */
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -250,7 +286,6 @@ body {
   background: #1d4ed8;
 }
 
-/* Botón de éxito (Verde) - Ej: Generar y Compartir / Descargar PDF */
 .btn-success {
   background: var(--success);
   color: white;
@@ -263,7 +298,6 @@ body {
   background: #059669;
 }
 
-/* Botón secundario (Blanco con borde) - Ej: Volver, Mi Perfil, Reporte */
 .btn-secondary {
   background: white;
   color: var(--text);
@@ -279,8 +313,26 @@ body {
   background: var(--bg);
 }
 
+/* Botón de alternancia (Toggle) para los gráficos */
+.btn-toggle {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--text-light);
+  transition: all 0.2s;
+}
+
+.btn-toggle.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 /* ==========================================
-   TARJETAS DE SELECCIÓN (Familias y Rubros)
+   TARJETAS DE SELECCIÓN (Categorías/Rubros)
    ========================================== */
 .card-select {
   background: var(--surface);
@@ -305,7 +357,6 @@ body {
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
-/* Flecha decorativa a la derecha de las tarjetas */
 .card-select::after {
   content: "→";
   color: var(--primary);
@@ -336,10 +387,8 @@ body {
 
 .resultado-item:last-child {
   border-bottom: none;
-  /* Quita la línea del último ítem */
 }
 
-/* Estado vacío (cuando no hay resultados ni datos) */
 .empty-state {
   display: flex;
   align-items: center;
@@ -351,7 +400,6 @@ body {
   font-style: italic;
 }
 
-/* Contenedor del botón de PDF */
 .pdf-action-container {
   margin-top: 20px;
   max-width: 400px;
@@ -362,8 +410,6 @@ body {
 /* ==========================================
    BANNERS FLOTANTES (TOASTS)
    ========================================== */
-
-/* Banner de Error (Rojo) */
 .error-banner {
   position: fixed;
   top: 20px;
@@ -379,7 +425,7 @@ body {
   gap: 15px;
   font-size: 0.95rem;
   font-weight: 500;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   z-index: 9999;
   animation: slideInRight 0.3s ease-out;
   max-width: 400px;
@@ -395,11 +441,6 @@ body {
   padding: 0 5px;
 }
 
-.error-banner button:hover {
-  color: #7f1d1d;
-}
-
-/* Banner de Éxito (Verde) */
 .success-banner {
   position: fixed;
   top: 20px;
@@ -415,7 +456,7 @@ body {
   gap: 15px;
   font-size: 0.95rem;
   font-weight: 500;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   z-index: 9999;
   animation: slideInRight 0.3s ease-out;
   max-width: 400px;
@@ -431,11 +472,6 @@ body {
   padding: 0 5px;
 }
 
-.success-banner button:hover {
-  color: #166534;
-}
-
-/* Animación para que los carteles entren desde la derecha */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -449,7 +485,7 @@ body {
 }
 
 /* ==========================================
-   PANTALLAS DE LOGIN Y PERFIL (Auth)
+   PANTALLAS DE LOGIN Y PERFIL
    ========================================== */
 .auth-container {
   display: flex;
@@ -485,7 +521,7 @@ body {
 }
 
 /* ==========================================
-   HEADER DE USUARIO LOGUEADO (Barra superior)
+   HEADER DEL USUARIO (Barra Superior)
    ========================================== */
 .user-header {
   display: flex;
@@ -497,7 +533,6 @@ body {
   margin-bottom: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   flex-wrap: wrap;
-  /* Permite que los botones bajen a la siguiente línea si no entran */
   gap: 15px;
 }
 
@@ -537,20 +572,17 @@ body {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
-  /* Permite que los botones bajen de línea si no hay espacio */
 }
 
-/* REGLAS RESPONSIVE PARA CELULARES (Acomoda los 5 botones) */
+/* Adaptación para móviles (botones apilados o en fila de a dos) */
 @media (max-width: 600px) {
   .user-actions {
     width: 100%;
     justify-content: center;
-    /* Centra los botones en celular */
   }
 
   .user-actions .btn {
     flex: 1 1 40%;
-    /* Hace que los botones ocupen casi la mitad de la pantalla cada uno */
     padding: 8px 4px;
     font-size: 0.75rem;
     white-space: nowrap;

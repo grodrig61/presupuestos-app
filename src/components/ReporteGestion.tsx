@@ -1,22 +1,28 @@
 // src/components/ReporteGestion.tsx
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { formatNumber } from '../lib/utils'
 import type { PresupuestoGuardado, Familia } from '../types'
 
+// Definimos los tipos de propiedades que recibe el componente
 interface Props {
     historial: PresupuestoGuardado[];
     familias: Familia[];
 }
 
+// Paleta de colores para el gráfico de torta
 const COLORES_PIE = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#64748b'];
 
 export const ReporteGestion = ({ historial, familias }: Props) => {
 
-    // --- CÁLCULO DE KPIs (Números duros) ---
+    // Estado para alternar la vista del gráfico de torta (Categoría o Rubro)
+    const [tipoGrafico, setTipoGrafico] = useState<'categoria' | 'rubro'>('categoria');
+
+    // --- 1. CÁLCULO DE KPIs (Números duros del resumen) ---
     const kpis = useMemo(() => {
         if (historial.length === 0) return { total: 0, cantidad: 0, promedio: 0 };
 
+        // Sumamos el total de todos los presupuestos
         const total = historial.reduce((acc, p) => acc + (p.total || 0), 0);
         const cantidad = historial.length;
         const promedio = total / cantidad;
@@ -24,21 +30,21 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
         return { total, cantidad, promedio };
     }, [historial]);
 
-    // --- DATOS PARA EL GRÁFICO DE BARRAS (Últimos 6 meses) ---
+    // --- 2. DATOS PARA EL GRÁFICO DE BARRAS (Últimos 6 meses) ---
     const datosMeses = useMemo(() => {
         const meses: Record<string, number> = {};
         const hoy = new Date();
 
-        // Inicializamos los últimos 6 meses en 0
+        // Inicializamos un objeto con los últimos 6 meses (para que los meses sin ventas aparezcan en 0)
         for (let i = 5; i >= 0; i--) {
             const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-            const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
-            const label = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }).toUpperCase();
+            const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // Ej: "2023-11"
+            const label = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }).toUpperCase(); // Ej: "NOV 23"
             meses[clave] = 0;
             meses[`${clave}-label`] = label as any;
         }
 
-        // Sumamos los totales en el mes que corresponden
+        // Recorremos el historial y sumamos el dinero en el mes que corresponde
         historial.forEach(p => {
             const fecha = new Date(p.creado_en);
             const clave = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
@@ -47,6 +53,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             }
         });
 
+        // Transformamos el objeto en un array que Recharts pueda entender
         return Object.keys(meses)
             .filter(key => !key.includes('-label'))
             .map(clave => ({
@@ -55,24 +62,39 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             }));
     }, [historial]);
 
-    // --- DATOS PARA EL GRÁFICO DE TORTA (Rubros más solicitados) ---
-    const datosRubros = useMemo(() => {
+    // --- 3. DATOS PARA EL GRÁFICO DE TORTA (Dinámico según el Toggle) ---
+    const datosTorta = useMemo(() => {
         const conteo: Record<string, number> = {};
 
         historial.forEach(p => {
+            let nombreItem = '';
+
+            // Buscamos el nombre de la familia (categoría) para usarlo como prefijo o como dato principal
             const familia = familias.find(f => f.rubros.some(r => r.id === p.rubro_id));
             const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Otros';
 
-            if (!conteo[nombreCategoria]) conteo[nombreCategoria] = 0;
-            conteo[nombreCategoria] += 1;
+            if (tipoGrafico === 'categoria') {
+                // MODO CATEGORÍA: Solo mostramos la familia (Ej: "Instalaciones")
+                nombreItem = nombreCategoria;
+            } else {
+                // MODO RUBRO: Agregamos el prefijo jerárquico (Ej: "Instalaciones > Plomería")
+                const nombreRubro = p.datos_entrada.rubroNombre || 'Otros';
+                nombreItem = `${nombreCategoria} > ${nombreRubro}`;
+            }
+
+            // Contamos cuántas veces aparece cada nombre
+            if (!conteo[nombreItem]) conteo[nombreItem] = 0;
+            conteo[nombreItem] += 1;
         });
 
+        // Transformamos a array y ordenamos de mayor a menor para que la torta se vea mejor
         return Object.keys(conteo).map(nombre => ({
             name: nombre,
             value: conteo[nombre]
         })).sort((a, b) => b.value - a.value);
-    }, [historial, familias]);
+    }, [historial, familias, tipoGrafico]);
 
+    // Si no hay presupuestos, mostramos un cartel amigable
     if (historial.length === 0) {
         return (
             <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px', marginTop: '20px' }}>
@@ -83,34 +105,44 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
 
     return (
         <div>
-            {/* TARJETAS KPI */}
+            {/* ==========================================
+          SECCIÓN DE TARJETAS KPI
+          ========================================== */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
-                <div className="panel" style={{ textAlign: 'center', padding: '25px 15px' }}>
-                    <h4 style={{ margin: 0, color: 'var(--text-light)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Total Cotizado</h4>
-                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)', marginTop: '10px' }}>
+
+                <div className="panel kpi-card">
+                    <h4 className="kpi-title">Total Cotizado</h4>
+                    <div className="kpi-value" style={{ color: 'var(--primary)' }}>
                         ${formatNumber(kpis.total)}
                     </div>
                 </div>
-                <div className="panel" style={{ textAlign: 'center', padding: '25px 15px' }}>
-                    <h4 style={{ margin: 0, color: 'var(--text-light)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Presupuestos Creados</h4>
-                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text)', marginTop: '10px' }}>
+
+                <div className="panel kpi-card">
+                    <h4 className="kpi-title">Presupuestos Creados</h4>
+                    <div className="kpi-value" style={{ color: 'var(--text)' }}>
                         {kpis.cantidad}
                     </div>
                 </div>
-                <div className="panel" style={{ textAlign: 'center', padding: '25px 15px' }}>
-                    <h4 style={{ margin: 0, color: 'var(--text-light)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Ticket Promedio</h4>
-                    <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--success)', marginTop: '10px' }}>
+
+                <div className="panel kpi-card">
+                    <h4 className="kpi-title">Ticket Promedio</h4>
+                    <div className="kpi-value" style={{ color: 'var(--success)' }}>
                         ${formatNumber(kpis.promedio)}
                     </div>
                 </div>
+
             </div>
 
-            {/* GRÁFICOS */}
+            {/* ==========================================
+          SECCIÓN DE GRÁFICOS
+          ========================================== */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
 
-                {/* Gráfico de Barras: Evolución Mensual */}
+                {/* Gráfico 1: Barras Mensuales */}
                 <div className="panel" style={{ padding: '20px' }}>
-                    <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>Evolución de Cotizaciones (Últimos 6 meses)</h3>
+                    <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>
+                        Evolución de Cotizaciones (Últimos 6 meses)
+                    </h3>
                     <div style={{ width: '100%', height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={datosMeses} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
@@ -127,14 +159,33 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                     </div>
                 </div>
 
-                {/* Gráfico de Torta: Rubros */}
+                {/* Gráfico 2: Torta Dinámica (Categorías o Rubros con Prefijo) */}
                 <div className="panel" style={{ padding: '20px' }}>
-                    <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>Distribución por Categoría</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>Distribución</h3>
+
+                        {/* Botones Toggle para cambiar la vista */}
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <button
+                                className={`btn-toggle ${tipoGrafico === 'categoria' ? 'active' : ''}`}
+                                onClick={() => setTipoGrafico('categoria')}
+                            >
+                                Categorías
+                            </button>
+                            <button
+                                className={`btn-toggle ${tipoGrafico === 'rubro' ? 'active' : ''}`}
+                                onClick={() => setTipoGrafico('rubro')}
+                            >
+                                Rubros
+                            </button>
+                        </div>
+                    </div>
+
                     <div style={{ width: '100%', height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={datosRubros}
+                                    data={datosTorta}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -142,7 +193,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {datosRubros.map((_, index) => (
+                                    {datosTorta.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORES_PIE[index % COLORES_PIE.length]} />
                                     ))}
                                 </Pie>
