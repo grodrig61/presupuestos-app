@@ -1,7 +1,5 @@
 // ============================================================================
 // COMPONENTE PRINCIPAL DE LA APLICACIÓN (App.tsx)
-// Este archivo maneja el estado global, la navegación, la autenticación
-// y la lógica de negocio de ObraFácil.
 // ============================================================================
 
 import { useEffect, useState, useMemo } from 'react'
@@ -17,14 +15,11 @@ function App() {
   // ==========================================================================
   // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
-
-  // --- Autenticación ---
   const [session, setSession] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
-  // --- Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
@@ -33,7 +28,6 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
-  // --- Datos y Navegación ---
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
@@ -42,7 +36,6 @@ function App() {
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
 
-  // --- Formulario del Presupuesto ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -52,9 +45,10 @@ function App() {
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  // --- Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
+
+  // Filtros
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
@@ -63,13 +57,13 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // --- Estado para el menú desplegable del estado (Popover) ---
-  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
+  // --- Estados para los Popovers (Menús flotantes) ---
+  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null) // Para las tarjetas
+  const [menuFiltroEstadoAbierto, setMenuFiltroEstadoAbierto] = useState(false) // Para el filtro
 
-  // Detecta si está en celular para adaptar botones
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-  // Efecto para ocultar el cartel verde de éxito a los 4 segundos
+  // Efectos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -77,14 +71,17 @@ function App() {
     }
   }, [toastExito])
 
-  // Efecto para cerrar el menú de estado si el usuario hace clic afuera
+  // Cerrar menús al hacer clic afuera
   useEffect(() => {
-    const cerrarMenus = () => setMenuEstadoAbierto(null)
+    const cerrarMenus = () => {
+      setMenuEstadoAbierto(null)
+      setMenuFiltroEstadoAbierto(false)
+    }
     document.addEventListener('click', cerrarMenus)
     return () => document.removeEventListener('click', cerrarMenus)
   }, [])
 
-  // Verificación inicial de sesión
+  // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -621,14 +618,44 @@ function App() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
             <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
 
-            <div className="input-group" style={{ flex: '1 1 120px', marginBottom: 0 }}>
-              <label>Estado</label>
-              <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-                <option value="">Todos</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="aprobado">Aprobados</option>
-                <option value="rechazado">Rechazados</option>
-              </select>
+            {/* FILTRO DE ESTADO PERSONALIZADO (POPOVER) */}
+            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Estado</label>
+              <button
+                className={`btn-estado ${filtroEstado ? filtroEstado : 'pendiente'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuFiltroEstadoAbierto(!menuFiltroEstadoAbierto);
+                }}
+                style={{ width: '100%', justifyContent: 'space-between', backgroundColor: filtroEstado ? undefined : '#f1f5f9', color: filtroEstado ? undefined : '#64748b', borderColor: filtroEstado ? undefined : '#e2e8f0' }}
+              >
+                {filtroEstado ? (
+                  <>
+                    <span className={`dot-color dot-${filtroEstado}`}></span>
+                    {filtroEstado === 'aprobado' ? 'Aprobados' : filtroEstado === 'rechazado' ? 'Rechazados' : 'Pendientes'}
+                  </>
+                ) : (
+                  'Todos los estados'
+                )}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+
+              {menuFiltroEstadoAbierto && (
+                <div className="menu-estado" style={{ width: '100%' }}>
+                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado(''); setMenuFiltroEstadoAbierto(false); }}>
+                    Todos
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('pendiente'); setMenuFiltroEstadoAbierto(false); }}>
+                    <span className="dot-color dot-pendiente"></span> Pendientes
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('aprobado'); setMenuFiltroEstadoAbierto(false); }}>
+                    <span className="dot-color dot-aprobado"></span> Aprobados
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setFiltroEstado('rechazado'); setMenuFiltroEstadoAbierto(false); }}>
+                    <span className="dot-color dot-rechazado"></span> Rechazados
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="input-group" style={{ flex: '1 1 130px', marginBottom: 0 }}>

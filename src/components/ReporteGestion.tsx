@@ -5,7 +5,6 @@ import {
     PieChart, Pie, Cell, Legend, LabelList
 } from 'recharts'
 import { formatNumber } from '../lib/utils'
-// Importamos los tipos necesarios
 import type { PresupuestoGuardado, Familia, Rubro } from '../types'
 
 interface Props {
@@ -14,6 +13,11 @@ interface Props {
 }
 
 const COLORES_PIE = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#64748b'];
+const COLORES_ESTADOS = {
+    pendiente: '#eab308', // Amarillo
+    aprobado: '#22c55e',  // Verde
+    rechazado: '#ef4444'  // Rojo
+};
 
 export const ReporteGestion = ({ historial, familias }: Props) => {
     const [tipoGrafico, setTipoGrafico] = useState<'categoria' | 'rubro'>('categoria');
@@ -48,13 +52,11 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             .map(clave => ({ mes: meses[`${clave}-label`], total: meses[clave] }));
     }, [historial]);
 
-    // 3. DATOS PARA EL GRÁFICO DE TORTA
+    // 3. DATOS PARA EL GRÁFICO DE TORTA (Categorías/Rubros)
     const datosTorta = useMemo(() => {
         const conteo: Record<string, number> = {};
         historial.forEach(p => {
             let nombreItem = '';
-
-            // Tipado explícito para evitar errores
             const familia = familias.find((f: Familia) => f.rubros.some((r: Rubro) => r.id === p.rubro_id));
             const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Otros';
 
@@ -70,6 +72,23 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
         return Object.keys(conteo).map(nombre => ({ name: nombre, value: conteo[nombre] })).sort((a, b) => b.value - a.value);
     }, [historial, familias, tipoGrafico]);
 
+    // 4. DATOS PARA EL GRÁFICO DE ESTADOS
+    const datosEstados = useMemo(() => {
+        const conteo = { pendiente: 0, aprobado: 0, rechazado: 0 };
+
+        historial.forEach(p => {
+            if (p.estado === 'aprobado') conteo.aprobado += 1;
+            else if (p.estado === 'rechazado') conteo.rechazado += 1;
+            else conteo.pendiente += 1;
+        });
+
+        return [
+            { name: 'Pendientes', value: conteo.pendiente, color: COLORES_ESTADOS.pendiente },
+            { name: 'Aprobados', value: conteo.aprobado, color: COLORES_ESTADOS.aprobado },
+            { name: 'Rechazados', value: conteo.rechazado, color: COLORES_ESTADOS.rechazado }
+        ].filter(item => item.value > 0); // Solo mostramos los que tienen al menos 1
+    }, [historial]);
+
     if (historial.length === 0) {
         return (
             <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px', marginTop: '20px' }}>
@@ -78,12 +97,14 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
         )
     }
 
+    // Formateador abreviado para las barras
     const formatAbreviado = (value: number) => {
         if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
         return `$${value}`;
     };
 
+    // Leyenda Personalizada para las tortas
     const CustomLegend = (props: any) => {
         const { payload } = props;
         return (
@@ -127,9 +148,10 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                 </div>
             </div>
 
-            {/* GRÁFICOS */}
+            {/* GRÁFICOS (Ahora en 3 columnas) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
 
+                {/* Gráfico 1: Evolución Mensual */}
                 <div className="panel" style={{ padding: '20px' }}>
                     <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>
                         Evolución de Cotizaciones
@@ -161,6 +183,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                     </div>
                 </div>
 
+                {/* Gráfico 2: Distribución por Categoría/Rubro */}
                 <div className="panel" style={{ padding: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>Distribución</h3>
@@ -169,8 +192,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                             <button className={`btn-toggle ${tipoGrafico === 'rubro' ? 'active' : ''}`} onClick={() => setTipoGrafico('rubro')}>Rubros</button>
                         </div>
                     </div>
-
-                    <div style={{ width: '100%', height: 320 }}>
+                    <div style={{ width: '100%', height: 300 }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -184,6 +206,37 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                                 >
                                     {datosTorta.map((_, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORES_PIE[index % COLORES_PIE.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    formatter={(value) => [`${value} presupuestos`, 'Cantidad']}
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                                />
+                                <Legend verticalAlign="bottom" content={<CustomLegend />} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Gráfico 3: Estado de los Presupuestos */}
+                <div className="panel" style={{ padding: '20px' }}>
+                    <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>
+                        Estado de Presupuestos
+                    </h3>
+                    <div style={{ width: '100%', height: 300 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={datosEstados}
+                                    cx="50%"
+                                    cy="45%"
+                                    innerRadius={60}
+                                    outerRadius={85}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {datosEstados.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
                                 <Tooltip
