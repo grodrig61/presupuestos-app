@@ -1,48 +1,72 @@
-// src/lib/pdfGenerator.ts (Reemplaza todo tu archivo con este)
+// ============================================================================
+// GENERADOR DE PDF - OBRAFÁCIL
+// Este archivo se encarga de tomar todos los datos del presupuesto (ahora
+// con múltiples ítems), dibujar el documento PDF usando la librería pdf-lib,
+// y luego compartirlo o descargarlo.
+// ============================================================================
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
 import type { ItemCarrito } from '../types'
 
 export const descargarPDF = async (
+    // 1. Datos del profesional
     perfilData: any,
+
+    // 2. Datos del cliente
     clienteData: any,
+
+    // 3. Datos del trabajo general
     trabajoData: any,
+
+    // 4. Los ítems del carrito (Array de rubros calculados)
     itemsData: ItemCarrito[],
+
+    // 5. Gastos generales
     gastos: string,
+
+    // 6. Días de validez
     vigenciaDias: number,
+
+    // 7. Fecha de creación (para calcular el vencimiento)
     fechaCreacionOriginal: string,
+
+    // 8. Función para mostrar el cartel verde de descarga
     onMostrarToast: () => void
 ) => {
 
+    // --- INICIALIZACIÓN DEL DOCUMENTO ---
+    // Creamos un nuevo documento PDF
     const pdfDoc = await PDFDocument.create()
+
+    // Cargamos las fuentes estándar
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
+    // Definimos los márgenes del documento
     const marginLeft = 40
     const marginRight = 595 - 40
 
+    // Función auxiliar para crear nuevas páginas si el presupuesto es muy largo
     const agregarPagina = () => {
-        const page = pdfDoc.addPage([595, 842])
-        return { page, y: 842 - 50 }
+        const page = pdfDoc.addPage([595, 842]) // Tamaño A4
+        return { page, y: 842 - 50 } // y = altura - margen superior
     }
 
+    // Creamos la primera página
     let { page, y } = agregarPagina()
 
-    // 1. DIBUJAR EL LOGO (Soporte para JPG y PNG)
+    // ==========================================================================
+    // 1. DIBUJAR EL LOGO (CON PROTECCIÓN DE TAMAÑO)
+    // ==========================================================================
     if (perfilData.logo_url) {
         try {
             const response = await fetch(perfilData.logo_url)
             if (response.ok) {
                 const logoArrayBuffer = await response.arrayBuffer()
+                const logoImage = await pdfDoc.embedPng(logoArrayBuffer)
 
-                let logoImage;
-                try {
-                    logoImage = await pdfDoc.embedPng(logoArrayBuffer)
-                } catch (e) {
-                    logoImage = await pdfDoc.embedJpg(logoArrayBuffer)
-                }
-
+                // Limitamos el logo a un máximo de 65x65 puntos.
                 const maxLogoSize = 65
                 const originalDims = logoImage.scale(1)
                 const scaleFactor = Math.min(
@@ -63,7 +87,11 @@ export const descargarPDF = async (
         }
     }
 
+    // ==========================================================================
     // 2. ENCABEZADO (TÍTULO, FECHA Y VIGENCIA)
+    // ==========================================================================
+
+    // Título alineado a la derecha
     const titulo = 'PRESUPUESTO DE OBRA'
     const tituloWidth = fontBold.widthOfTextAtSize(titulo, 18)
     page.drawText(titulo, {
@@ -71,9 +99,10 @@ export const descargarPDF = async (
         y: y,
         size: 18,
         font: fontBold,
-        color: rgb(0.11, 0.22, 0.54)
+        color: rgb(0.11, 0.22, 0.54) // Azul oscuro
     })
 
+    // Cálculo de fechas
     const fechaBase = new Date(fechaCreacionOriginal)
     const fechaStr = fechaBase.toLocaleDateString('es-AR')
 
@@ -81,15 +110,17 @@ export const descargarPDF = async (
     fechaVencimiento.setDate(fechaVencimiento.getDate() + vigenciaDias)
     const fechaVencimientoStr = fechaVencimiento.toLocaleDateString('es-AR')
 
+    // Fecha (debajo del título)
     const fechaWidth = font.widthOfTextAtSize(`Fecha: ${fechaStr}`, 9)
     page.drawText(`Fecha: ${fechaStr}`, {
         x: marginRight - fechaWidth,
         y: y - 15,
         size: 9,
         font: font,
-        color: rgb(0.4, 0.4, 0.4)
+        color: rgb(0.4, 0.4, 0.4) // Gris
     })
 
+    // Vigencia (en rojo, debajo de la fecha)
     const vigenciaText = `Válido hasta: ${fechaVencimientoStr}`
     const vigenciaWidth = fontBold.widthOfTextAtSize(vigenciaText, 9)
     page.drawText(vigenciaText, {
@@ -97,10 +128,14 @@ export const descargarPDF = async (
         y: y - 28,
         size: 9,
         font: fontBold,
-        color: rgb(0.8, 0.2, 0.2)
+        color: rgb(0.8, 0.2, 0.2) // Rojo
     })
 
+    // ==========================================================================
     // 3. DATOS DEL PROFESIONAL
+    // ==========================================================================
+
+    // Nombre de la empresa
     const nombreEmpresa = perfilData.nombre || 'Profesional Independiente'
     page.drawText(nombreEmpresa, {
         x: marginLeft,
@@ -109,6 +144,7 @@ export const descargarPDF = async (
         font: fontBold
     })
 
+    // CUIT y Teléfono
     page.drawText(`CUIT: ${perfilData.cuit || '-'} | Tel: ${perfilData.telefono || '-'}`, {
         x: marginLeft,
         y: y - 100,
@@ -117,6 +153,7 @@ export const descargarPDF = async (
         color: rgb(0.4, 0.4, 0.4)
     })
 
+    // Matrícula (si existe)
     if (perfilData.matricula) {
         page.drawText(`Matrícula: ${perfilData.matricula}`, {
             x: marginLeft,
@@ -127,6 +164,7 @@ export const descargarPDF = async (
         })
     }
 
+    // Línea divisoria horizontal
     y -= 135
     page.drawLine({
         start: { x: marginLeft, y: y },
@@ -137,7 +175,10 @@ export const descargarPDF = async (
 
     y -= 25
 
+    // ==========================================================================
     // 4. DATOS DEL CLIENTE
+    // ==========================================================================
+
     page.drawText('DATOS DEL CLIENTE', {
         x: marginLeft,
         y: y,
@@ -163,7 +204,10 @@ export const descargarPDF = async (
 
     y -= 35
 
+    // ==========================================================================
     // 5. DESCRIPCIÓN GENERAL DEL TRABAJO
+    // ==========================================================================
+
     page.drawText('DESCRIPCIÓN DEL TRABAJO', {
         x: marginLeft,
         y: y,
@@ -174,6 +218,7 @@ export const descargarPDF = async (
 
     y -= 15
 
+    // Función interna para hacer saltos de línea automáticos en el PDF
     const drawTextWrapped = (text: string, x: number, y: number, maxWidth: number) => {
         const words = text.split(' ')
         let line = ''
@@ -197,9 +242,13 @@ export const descargarPDF = async (
 
     y -= 20
 
-    // 6. TABLA DE MATERIALES
+    // ==========================================================================
+    // 6. TABLA DE MATERIALES (ITERANDO SOBRE LOS ÍTEMS DEL CARRITO)
+    // ==========================================================================
+
     let totalGeneral = 0
 
+    // Definimos las coordenadas X de las columnas (se mantienen fijas para todas las tablas)
     const colX0 = marginLeft
     const colX1 = 300
     const colX2 = 380
@@ -209,12 +258,14 @@ export const descargarPDF = async (
     for (let i = 0; i < itemsData.length; i++) {
         const item = itemsData[i]
 
+        // Si no hay espacio suficiente en la página actual, creamos una nueva
         if (y < 150) {
             const nuevaPagina = agregarPagina()
             page = nuevaPagina.page
             y = nuevaPagina.y
         }
 
+        // Título de este ítem (nombre del rubro)
         page.drawText(`DETALLE: ${item.rubro.nombre.toUpperCase()}`, {
             x: marginLeft,
             y: y,
@@ -225,6 +276,7 @@ export const descargarPDF = async (
 
         y -= 20
 
+        // Encabezados de la tabla
         const tableTopY = y
 
         const drawCenteredText = (text: string, xStart: number, xEnd: number, yPos: number) => {
@@ -238,6 +290,7 @@ export const descargarPDF = async (
         drawCenteredText('P. UNIT.', colX2, colX3, tableTopY - 15)
         drawCenteredText('SUBTOTAL', colX3, colX4, tableTopY - 15)
 
+        // Líneas horizontales superiores de esta tabla
         page.drawLine({ start: { x: colX0, y: tableTopY }, end: { x: colX4, y: tableTopY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         const headerBottomY = tableTopY - 25
         page.drawLine({ start: { x: colX0, y: headerBottomY }, end: { x: colX4, y: headerBottomY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
@@ -245,7 +298,9 @@ export const descargarPDF = async (
         y = headerBottomY - 15
         let lastRowY = y
 
+        // Iteramos sobre los resultados calculados de este ítem
         Object.entries(item.resultados).forEach(([clave, cantidad]: any) => {
+            // Validación para salto de página en medio de una tabla
             if (y < 50) {
                 const nuevaPagina = agregarPagina()
                 page = nuevaPagina.page
@@ -257,14 +312,18 @@ export const descargarPDF = async (
             const subtotal = cantidad * precioUnitario
             totalGeneral += subtotal
 
+            // Descripción
             page.drawText(formatearNombreMaterial(clave), { x: colX0 + 5, y, size: 9, font })
 
+            // Cantidad
             const cantText = formatNumber(cantidad)
             page.drawText(cantText, { x: colX2 - font.widthOfTextAtSize(cantText, 9) - 5, y, size: 9, font })
 
+            // Precio Unitario
             const precioText = `$ ${formatNumber(precioUnitario)}`
             page.drawText(precioText, { x: colX3 - font.widthOfTextAtSize(precioText, 9) - 5, y, size: 9, font })
 
+            // Subtotal
             const subText = `$ ${formatNumber(subtotal)}`
             page.drawText(subText, {
                 x: colX4 - font.widthOfTextAtSize(subText, 9) - 5,
@@ -275,21 +334,27 @@ export const descargarPDF = async (
             })
 
             y -= 8
+            // Línea divisoria de fila
             page.drawLine({ start: { x: colX0, y: y }, end: { x: colX4, y: y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) })
             y -= 12
             lastRowY = y
         })
 
+        // Dibujamos las líneas verticales de esta tabla
         page.drawLine({ start: { x: colX0, y: tableTopY }, end: { x: colX0, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         page.drawLine({ start: { x: colX1, y: tableTopY }, end: { x: colX1, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         page.drawLine({ start: { x: colX2, y: tableTopY }, end: { x: colX2, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         page.drawLine({ start: { x: colX3, y: tableTopY }, end: { x: colX3, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         page.drawLine({ start: { x: colX4, y: tableTopY }, end: { x: colX4, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
-        y -= 20
+        y -= 20 // Espacio entre tablas
     }
 
+    // ==========================================================================
     // 7. GASTOS GENERALES Y TOTAL FINAL
+    // ==========================================================================
+
+    // Si no hay espacio, nueva página
     if (y < 100) {
         const nuevaPagina = agregarPagina()
         page = nuevaPagina.page
@@ -317,35 +382,19 @@ export const descargarPDF = async (
     const montoWidth = fontBold.widthOfTextAtSize(montoTotal, 16)
     page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
-    // ==========================================================================
-    // 8. PIE DE PÁGINA GLOBAL (Texto legal y Paginación)
-    // ==========================================================================
-    const pages = pdfDoc.getPages()
-    const totalPages = pages.length
-
-    pages.forEach((p, index) => {
-        // Texto legal (Izquierda)
-        p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
-            x: marginLeft,
-            y: 30,
-            size: 7,
-            font,
-            color: rgb(0.5, 0.5, 0.5)
-        })
-
-        // Paginación (Derecha) - NUEVO
-        const pageNumberText = `Página ${index + 1} de ${totalPages}`
-        const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
-        p.drawText(pageNumberText, {
-            x: marginRight - textWidth,
-            y: 30, // Misma altura que el texto legal
-            size: 8,
-            font: fontBold,
-            color: rgb(0.5, 0.5, 0.5)
-        })
+    // Se dibuja al final de la última página
+    page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
+        x: marginLeft,
+        y: 30,
+        size: 7,
+        font,
+        color: rgb(0.5, 0.5, 0.5)
     })
 
-    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR
+    // ==========================================================================
+    // 8. GENERACIÓN DEL ARCHIVO Y COMPARTIR
+    // ==========================================================================
+
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
 
@@ -354,6 +403,7 @@ export const descargarPDF = async (
     const nombreCliente = clienteData.nombre ? clienteData.nombre.replace(/ /g, '_') : 'Cliente'
     const nombreArchivo = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
 
+    // Detectamos si estamos en un celular
     const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
     if (esCelular) {
@@ -365,13 +415,14 @@ export const descargarPDF = async (
                     title: 'Presupuesto ObraFácil',
                     text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${nombreEmpresa}.`
                 })
-                return
+                return // Si se compartió con éxito, terminamos acá.
             }
         } catch (error) {
             console.log('El usuario canceló o falló el compartir en celular. Pasando a descarga directa...', error)
         }
     }
 
+    // FALLBACK: Si es PC o falló en celular, descargamos el archivo
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -381,6 +432,7 @@ export const descargarPDF = async (
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
+    // Mostramos el cartel verde avisando de la descarga
     if (!esCelular) {
         onMostrarToast()
     }

@@ -61,21 +61,10 @@ function App() {
 
   // --- ESTADOS DEL HISTORIAL ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
-  const [loadingHistorial, setLoadingHistorial] = useState(false)
+  const [, setLoadingHistorial] = useState(false)
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
-<<<<<<< HEAD
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
-  const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  // --- Estados para los Popovers (Menús flotantes) ---
-  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null) // Para las tarjetas (el ID del presupuesto)
-  const [menuFiltroAbierto, setMenuFiltroAbierto] = useState<string | null>(null) // Para la barra de filtros ('estado', 'categoria', 'rubro', 'orden')
-=======
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
-
-  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
   // ==========================================================================
   // 2. EFECTOS
@@ -87,19 +76,6 @@ function App() {
     }
   }, [toastExito])
 
-<<<<<<< HEAD
-  // Cerrar menús al hacer clic afuera
-  useEffect(() => {
-    const cerrarMenus = () => {
-      setMenuEstadoAbierto(null)
-      setMenuFiltroAbierto(null)
-    }
-    document.addEventListener('click', cerrarMenus)
-    return () => document.removeEventListener('click', cerrarMenus)
-  }, [])
-
-=======
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
   // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -166,15 +142,7 @@ function App() {
         }
       }
 
-<<<<<<< HEAD
-      const { error: dbError } = await supabase.from('perfiles').upsert({
-        id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl
-      })
-      if (dbError) throw dbError
-
-=======
       await supabase.from('perfiles').upsert({ id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl })
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
       await cargarPerfil(currentSession.user.id)
       setVistaPerfil(false)
       setLogoFile(null)
@@ -197,15 +165,9 @@ function App() {
     if (!session) return;
     const { data, error } = await supabase.from('precios_usuario').select('clave_atributo, valor').eq('usuario_id', session.user.id).eq('rubro_id', rubro.id);
     if (!error && data) {
-<<<<<<< HEAD
-      const preciosGuardados: Record<string, string> = {}
-      data.forEach(item => { preciosGuardados[item.clave_atributo] = item.valor.toString() })
-      setValores(prev => ({ ...prev, ...preciosGuardados }))
-=======
       const preciosGuardados: Record<string, string> = {};
       data.forEach(item => { preciosGuardados[item.clave_atributo] = item.valor.toString(); });
       setValores(prev => ({ ...prev, ...preciosGuardados }));
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
     }
   }
 
@@ -221,29 +183,7 @@ function App() {
         return false;
       }
     }
-<<<<<<< HEAD
-    return true
-  }
-
-  const validarParaPDF = (): boolean => {
-    if (!validarMedidas() || !rubroSeleccionado) return false
-    if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return false }
-    if (!trabajo.descripcion.trim()) { setErrorValidacion("Falta la descripción del trabajo."); return false }
-
-    let totalMateriales = 0
-    if (resultados) {
-      Object.entries(resultados).forEach(([clave, cantidad]) => {
-        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos)
-        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0
-        totalMateriales += cantidad * precio
-      })
-    }
-    const montoGastos = Number(gastosGenerales) || 0
-    if (totalMateriales + montoGastos <= 0) { setErrorValidacion("El total es $0,00."); return false }
-    return true
-=======
     return true;
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
   }
 
   const calcularPresupuesto = async () => {
@@ -253,22 +193,11 @@ function App() {
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
-<<<<<<< HEAD
-          const numValor = Number(valores[costo.clave])
-          return { usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, clave_atributo: costo.clave, valor: isNaN(numValor) ? 0 : numValor, unidad: costo.unidad }
-        }).filter(p => p.valor > 0)
-
-        if (preciosAGuardar.length > 0) {
-          await supabase.from('precios_usuario').upsert(preciosAGuardar, { onConflict: 'usuario_id, rubro_id, clave_atributo' })
-        }
-      } catch (err) { console.error("No se guardaron precios", err) }
-=======
           const numValor = Number(valores[costo.clave]);
           return { usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, clave_atributo: costo.clave, valor: isNaN(numValor) ? 0 : numValor, unidad: costo.unidad };
         }).filter(p => p.valor > 0);
         if (preciosAGuardar.length > 0) await supabase.from('precios_usuario').upsert(preciosAGuardar, { onConflict: 'usuario_id, rubro_id, clave_atributo' });
       } catch (err) { console.error("No se guardaron precios", err); }
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
     }
 
     const nuevoContexto: Record<string, any> = {}
@@ -344,27 +273,6 @@ function App() {
     totalGeneral += Number(gastosGenerales) || 0;
 
     if (session) {
-<<<<<<< HEAD
-      let totalMateriales = 0
-      Object.entries(resultados).forEach(([clave, cantidad]) => {
-        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos)
-        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0
-        totalMateriales += cantidad * precio
-      })
-      const totalGeneral = totalMateriales + (Number(gastosGenerales) || 0)
-      const familiaActual = familias.find(f => f.rubros.some(r => r.id === rubroSeleccionado.id))
-
-      await supabase.from('presupuestos').insert({
-        usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, cliente_nombre: cliente.nombre,
-        datos_entrada: { cliente, trabajo, valores, gastosGenerales, vigenciaDias: numVigencia, rubroNombre: rubroSeleccionado.nombre, familiaNombre: familiaActual?.nombre || 'Sin Categoría' },
-        resultado_calculo: { resultados, totalGeneral }, total: totalGeneral, estado: 'pendiente'
-      })
-    }
-
-    await descargarPDF(
-      perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
-      numVigencia, new Date().toISOString(),
-=======
       const datosInsert = {
         usuario_id: session.user.id,
         rubro_id: itemsCarrito[0].rubro.id, // Guardamos el ID del primer rubro por compatibilidad
@@ -400,7 +308,6 @@ function App() {
 
     await descargarPDF(
       perfil, cliente, trabajo, itemsCarrito, gastosGenerales, numVigencia, new Date().toISOString(),
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
@@ -414,59 +321,6 @@ function App() {
   // ==========================================================================
   const irAHistorial = async () => {
     if (!session) return
-<<<<<<< HEAD
-    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false)
-
-    const { data, error } = await supabase
-      .from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false })
-
-    if (!error && data) setHistorial(data)
-    setLoadingHistorial(false)
-  }
-
-  const irAReporte = async () => {
-    if (!session) return
-    setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false)
-
-    if (historial.length === 0) {
-      setLoadingData(true)
-      const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false })
-      if (!error && data) setHistorial(data)
-      setLoadingData(false)
-    }
-  }
-
-  const descargarPDFDelHistorial = async (presupuesto: PresupuestoGuardado) => {
-    if (!perfil) return
-    const { datos_entrada, resultado_calculo, rubro_id, creado_en } = presupuesto
-    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id))
-    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id)
-
-    if (rubroOriginal) {
-      const vigencia = datos_entrada.vigenciaDias || 15
-      await descargarPDF(
-        perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
-        vigencia, creado_en,
-        () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
-      )
-    }
-  }
-
-  const duplicarPresupuesto = (presupuesto: PresupuestoGuardado) => {
-    const { datos_entrada, resultado_calculo, rubro_id } = presupuesto
-    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id))
-    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id)
-
-    if (rubroOriginal) {
-      setRubroSeleccionado(rubroOriginal); setCliente(datos_entrada.cliente); setTrabajo(datos_entrada.trabajo)
-      setValores(datos_entrada.valores); setGastosGenerales(datos_entrada.gastosGenerales || '')
-      setVigenciaDias(datos_entrada.vigenciaDias ? datos_entrada.vigenciaDias.toString() : '15')
-      setResultados(resultado_calculo.resultados)
-
-      setVistaHistorial(false); setVistaReporte(false); setErrorValidacion(null)
-      setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.")
-    }
-=======
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
     const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
     if (!error && data) setHistorial(data);
@@ -482,7 +336,6 @@ function App() {
     setItemsCarrito(p.datos_entrada.items || []);
     setVistaHistorial(false);
     setVistaCarrito(true);
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
   }
 
   const actualizarEstado = async (id: string, nuevoEstado: string) => {
@@ -492,55 +345,11 @@ function App() {
 
   // Filtro básico del historial
   const historialFiltrado = useMemo(() => {
-<<<<<<< HEAD
-    let filtrado = [...historial]
-
-    if (filtroCliente) {
-      filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()))
-    }
-    if (filtroCategoria) {
-      filtrado = filtrado.filter(p => (p.datos_entrada.familiaNombre || familias.find(f => f.rubros.some(r => r.id === p.rubro_id))?.nombre) === filtroCategoria)
-    }
-    if (filtroRubro) {
-      filtrado = filtrado.filter(p => p.datos_entrada.rubroNombre === filtroRubro)
-    }
-    if (filtroEstado) {
-      filtrado = filtrado.filter(p => p.estado === filtroEstado)
-    }
-    if (filtroFechaDesde) {
-      filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() >= new Date(filtroFechaDesde + 'T00:00:00').getTime())
-    }
-    if (filtroFechaHasta) {
-      filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() <= new Date(filtroFechaHasta + 'T23:59:59').getTime())
-    }
-
-    filtrado.sort((a, b) => {
-      switch (ordenHistorial) {
-        case 'fecha-asc': return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime()
-        case 'cliente-asc': return a.cliente_nombre.localeCompare(b.cliente_nombre)
-        case 'cliente-desc': return b.cliente_nombre.localeCompare(a.cliente_nombre)
-        default: return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
-      }
-    })
-    return filtrado
-  }, [historial, filtroCliente, filtroCategoria, filtroRubro, filtroEstado, filtroFechaDesde, filtroFechaHasta, ordenHistorial, familias])
-
-  const rubrosDisponibles = useMemo(() => {
-    if (!filtroCategoria) return []
-    const familia = familias.find(f => f.nombre === filtroCategoria)
-    return familia ? familia.rubros.map(r => r.nombre) : []
-  }, [filtroCategoria, familias])
-
-  const limpiarFiltros = () => {
-    setFiltroCliente(''); setFiltroCategoria(''); setFiltroRubro(''); setFiltroEstado(''); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setOrdenHistorial('fecha-desc')
-  }
-=======
     let filtrado = [...historial];
     if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
     if (filtroEstado) filtrado = filtrado.filter(p => p.estado === filtroEstado);
     return filtrado;
   }, [historial, filtroCliente, filtroEstado]);
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
 
   // ==========================================================================
   // 8. RENDERIZADO
@@ -576,13 +385,7 @@ function App() {
             <div className="input-group"><label>Matrícula Profesional</label><input type="text" value={matricula} onChange={e => setMatricula(e.target.value)} /></div>
             <div className="input-group"><label>Logo (Dejar en blanco para mantener el actual)</label><input type="file" accept="image/png, image/jpeg" onChange={e => setLogoFile(e.target.files?.[0] || null)} /></div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-<<<<<<< HEAD
-              <button type="submit" className="btn btn-primary" disabled={guardandoPerfil}>
-                {guardandoPerfil ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-=======
               <button type="submit" className="btn btn-primary" disabled={guardandoPerfil}>{guardandoPerfil ? 'Guardando...' : 'Guardar Cambios'}</button>
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
               {perfil && <button type="button" className="btn btn-secondary" onClick={() => setVistaPerfil(false)}>Cancelar</button>}
             </div>
           </form>
@@ -596,21 +399,8 @@ function App() {
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
-<<<<<<< HEAD
-        <UserHeader
-          perfil={perfil}
-          onVerHistorial={irAHistorial}
-          onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
-          onVerReporte={() => { }}
-          onLogout={handleLogout}
-          mostrarBotonVolver={true}
-          onVolver={() => setVistaReporte(false)}
-        />
-        <div className="page-header"><div><h1>Resumen de Gestión</h1><p>Visualizá el rendimiento de tu negocio</p></div></div>
-=======
         <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaReporte(false)} />
         <div className="page-header"><div><h1>Resumen de Gestión</h1></div></div>
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
         <ReporteGestion historial={historial} familias={familias} />
       </div>
     )
@@ -625,117 +415,6 @@ function App() {
 
         <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => { setVistaCarrito(false); setEdicionId(null); setItemsCarrito([]); }} />
 
-<<<<<<< HEAD
-        <div className="page-header"><div><h1>Mis Presupuestos</h1></div></div>
-
-        {/* BARRA DE FILTROS */}
-        <div className="panel" style={{ marginBottom: '20px', padding: '15px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
-            <div className="input-group" style={{ flex: '1 1 150px', marginBottom: 0 }}>
-              <label>Buscar Cliente</label>
-              <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
-            </div>
-
-            {/* FILTRO DE ESTADO */}
-            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Estado</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'estado' ? null : 'estado'); }}
-              >
-                <span>{filtroEstado ? (filtroEstado === 'aprobado' ? 'Aprobados' : filtroEstado === 'rechazado' ? 'Rechazados' : 'Pendientes') : 'Todos'}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-              {menuFiltroAbierto === 'estado' && (
-                <div className="menu-filtro">
-                  <button onClick={() => { setFiltroEstado(''); setMenuFiltroAbierto(null); }}>Todos</button>
-                  <button onClick={() => { setFiltroEstado('pendiente'); setMenuFiltroAbierto(null); }}>Pendientes</button>
-                  <button onClick={() => { setFiltroEstado('aprobado'); setMenuFiltroAbierto(null); }}>Aprobados</button>
-                  <button onClick={() => { setFiltroEstado('rechazado'); setMenuFiltroAbierto(null); }}>Rechazados</button>
-                </div>
-              )}
-            </div>
-
-            {/* FILTRO DE CATEGORÍA */}
-            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Categoría</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'categoria' ? null : 'categoria'); }}
-              >
-                <span>{filtroCategoria || 'Todas'}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-              {menuFiltroAbierto === 'categoria' && (
-                <div className="menu-filtro">
-                  <button onClick={() => { setFiltroCategoria(''); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todas</button>
-                  {familias.map(f => (
-                    <button key={f.id} onClick={() => { setFiltroCategoria(f.nombre); setFiltroRubro(''); setMenuFiltroAbierto(null); }}>{f.nombre}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* FILTRO DE RUBRO */}
-            <div className="contenedor-popover" style={{ flex: '1 1 130px', marginBottom: 0 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Rubro</label>
-              <button
-                className="btn-filtro" disabled={!filtroCategoria}
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'rubro' ? null : 'rubro'); }}
-              >
-                <span>{filtroRubro || 'Todos'}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-              {menuFiltroAbierto === 'rubro' && filtroCategoria && (
-                <div className="menu-filtro">
-                  <button onClick={() => { setFiltroRubro(''); setMenuFiltroAbierto(null); }}>Todos</button>
-                  {rubrosDisponibles.map(r => (
-                    <button key={r} onClick={() => { setFiltroRubro(r); setMenuFiltroAbierto(null); }}>{r}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Desde</label><input type="date" value={filtroFechaDesde} onChange={e => setFiltroFechaDesde(e.target.value)} /></div>
-            <div className="input-group" style={{ flex: '1 1 110px', marginBottom: 0 }}><label>Hasta</label><input type="date" value={filtroFechaHasta} onChange={e => setFiltroFechaHasta(e.target.value)} /></div>
-
-            {/* FILTRO DE ORDEN */}
-            <div className="contenedor-popover" style={{ flex: '1 1 150px', marginBottom: 0 }}>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', display: 'block' }}>Ordenar por</label>
-              <button
-                className="btn-filtro"
-                onClick={(e) => { e.stopPropagation(); setMenuFiltroAbierto(menuFiltroAbierto === 'orden' ? null : 'orden'); }}
-              >
-                <span>
-                  {ordenHistorial === 'fecha-asc' ? 'Más antiguos' : ordenHistorial === 'cliente-asc' ? 'Cliente (A-Z)' : ordenHistorial === 'cliente-desc' ? 'Cliente (Z-A)' : 'Más nuevos'}
-                </span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-              {menuFiltroAbierto === 'orden' && (
-                <div className="menu-filtro">
-                  <button onClick={() => { setOrdenHistorial('fecha-desc'); setMenuFiltroAbierto(null); }}>Más nuevos primero</button>
-                  <button onClick={() => { setOrdenHistorial('fecha-asc'); setMenuFiltroAbierto(null); }}>Más antiguos primero</button>
-                  <button onClick={() => { setOrdenHistorial('cliente-asc'); setMenuFiltroAbierto(null); }}>Cliente (A-Z)</button>
-                  <button onClick={() => { setOrdenHistorial('cliente-desc'); setMenuFiltroAbierto(null); }}>Cliente (Z-A)</button>
-                </div>
-              )}
-            </div>
-
-            <button className="btn btn-secondary" onClick={limpiarFiltros} style={{ height: '38px', padding: '0 15px' }}>Limpiar</button>
-          </div>
-        </div>
-
-        {/* LISTA DE TARJETAS */}
-        {loadingHistorial ? <p>Cargando...</p> : historialFiltrado.length === 0 ? <div className="empty-state" style={{ background: 'white', padding: '40px', borderRadius: '12px' }}>No hay presupuestos.</div> : (
-          <div className="grid-rubros">
-            {historialFiltrado.map(p => {
-              const familia = familias.find(f => f.rubros.some(r => r.id === p.rubro_id));
-              const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Categoría';
-              const nombreRubro = p.datos_entrada.rubroNombre || 'Rubro';
-              const descripcion = p.datos_entrada.trabajo?.descripcion || 'Sin descripción';
-              return (
-                <div key={p.id} className="panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-=======
         <div className="page-header">
           <div>
             <h1>{edicionId ? 'Editando Presupuesto' : 'Armar Presupuesto de Obra'}</h1>
@@ -765,52 +444,11 @@ function App() {
             </div>
             <div className="input-group"><label>Teléfono (WhatsApp)</label><input type="tel" value={cliente.telefono} onChange={e => setCliente({ ...cliente, telefono: e.target.value })} /></div>
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
 
             <div className="input-group"><label>Descripción General</label><textarea rows={2} value={trabajo.descripcion} onChange={e => setTrabajo({ ...trabajo, descripcion: e.target.value })} placeholder="Ej: Refacción integral de baño..." /></div>
             <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} /></div>
           </div>
 
-<<<<<<< HEAD
-                  <div style={{ marginBottom: '15px' }}>
-                    <strong style={{ display: 'block', fontSize: '1.1rem', marginBottom: '4px' }}>Cliente: {p.cliente_nombre}</strong>
-                    <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px', flexWrap: 'wrap' }}>
-                    <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-
-                    <div className="acciones-tarjeta">
-                      <div className="contenedor-popover">
-                        <button
-                          className={`btn-estado ${p.estado || 'pendiente'}`}
-                          onClick={(e) => { e.stopPropagation(); setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id); }}
-                        >
-                          <span className={`dot-color dot-${p.estado || 'pendiente'}`}></span>
-                          {p.estado === 'aprobado' ? 'Aprobado' : p.estado === 'rechazado' ? 'Rechazado' : 'Pendiente'}
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                        </button>
-                        {menuEstadoAbierto === p.id && (
-                          <div className="menu-estado">
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'pendiente'); }}><span className="dot-color dot-pendiente"></span> Pendiente</button>
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'aprobado'); }}><span className="dot-color dot-aprobado"></span> Aprobado</button>
-                            <button onClick={(e) => { e.stopPropagation(); actualizarEstado(p.id, 'rechazado'); }}><span className="dot-color dot-rechazado"></span> Rechazado</button>
-                          </div>
-                        )}
-                      </div>
-
-                      <button className="btn-icono" onClick={() => duplicarPresupuesto(p)} title="Duplicar Presupuesto">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
-                      </button>
-
-                      <button className="btn-descarga" onClick={() => descargarPDFDelHistorial(p)}>
-                        {esCelular ? (
-                          <><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" x2="12" y1="2" y2="15" /></svg>Compartir</>
-                        ) : (
-                          <><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>PDF</>
-                        )}
-                      </button>
-=======
           {/* PANEL 2: LISTA DEL CARRITO */}
           <div className="panel panel-resultados" style={{ gridColumn: 'span 2' }}>
             <h3>2. Detalle del Presupuesto</h3>
@@ -823,7 +461,6 @@ function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                       <strong style={{ color: 'var(--primary)' }}>{item.rubro.nombre}</strong>
                       <button onClick={() => eliminarDelCarrito(index)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>Eliminar</button>
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
                     </div>
                     {Object.entries(item.resultados).map(([clave, valor]) => (
                       <div key={clave} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b' }}>
@@ -927,13 +564,7 @@ function App() {
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
 
-<<<<<<< HEAD
-        <UserHeader
-          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-        />
-=======
         <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => { setRubroSeleccionado(null); setResultados(null); setValores({}); }}>← Volver a rubros</button>
@@ -942,18 +573,6 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
-<<<<<<< HEAD
-          <div className="panel panel-cliente">
-            <h3>1. Datos del Cliente</h3>
-            <div className="input-group"><label>Nombre *</label><input type="text" value={cliente.nombre} onChange={e => { setCliente({ ...cliente, nombre: e.target.value }); setErrorValidacion(null); }} /></div>
-            <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
-            <div className="input-group"><label>Vigencia del Presupuesto (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} placeholder="Ej: 15" /></div>
-            <div className="input-group"><label>Descripción *</label><textarea rows={2} value={trabajo.descripcion} onChange={e => { setTrabajo({ ...trabajo, descripcion: e.target.value }); setErrorValidacion(null); }} /></div>
-            <div className="input-group"><label>Tareas Detalladas</label><textarea rows={2} value={trabajo.tareas} onChange={e => setTrabajo({ ...trabajo, tareas: e.target.value })} /></div>
-          </div>
-
-=======
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
           <div className="panel panel-medidas">
             <h3>Medidas</h3>
             {rubroSeleccionado.atributos.map(atributo => (
@@ -1000,14 +619,7 @@ function App() {
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
-<<<<<<< HEAD
-        {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
-        <UserHeader
-          perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-        />
-=======
         <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => setFamiliaSeleccionada(null)}>← Volver a Categorías</button>
@@ -1026,12 +638,6 @@ function App() {
   // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
-<<<<<<< HEAD
-      {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
-      <UserHeader
-        perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={irAReporte} onLogout={handleLogout}
-      />
-=======
       <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
 
       {/* Si hay items en el carrito, mostramos un aviso flotante para ir a pagar */}
@@ -1043,7 +649,6 @@ function App() {
         </div>
       )}
 
->>>>>>> f91b008f877ac287b782a2043b8da848a8a190f6
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>
       <div className="grid-rubros">
         {familias.map(familia => (
