@@ -57,14 +57,21 @@ export const descargarPDF = async (
     let { page, y } = agregarPagina()
 
     // ==========================================================================
-    // 1. DIBUJAR EL LOGO (CON PROTECCIÓN DE TAMAÑO)
+    // 1. DIBUJAR EL LOGO (CON PROTECCIÓN DE TAMAÑO Y FORMATO)
     // ==========================================================================
     if (perfilData.logo_url) {
         try {
             const response = await fetch(perfilData.logo_url)
             if (response.ok) {
                 const logoArrayBuffer = await response.arrayBuffer()
-                const logoImage = await pdfDoc.embedPng(logoArrayBuffer)
+
+                let logoImage;
+                // Intentamos cargar como PNG. Si falla, intentamos como JPG.
+                try {
+                    logoImage = await pdfDoc.embedPng(logoArrayBuffer)
+                } catch (e) {
+                    logoImage = await pdfDoc.embedJpg(logoArrayBuffer)
+                }
 
                 // Limitamos el logo a un máximo de 65x65 puntos.
                 const maxLogoSize = 65
@@ -382,17 +389,39 @@ export const descargarPDF = async (
     const montoWidth = fontBold.widthOfTextAtSize(montoTotal, 16)
     page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
-    // Se dibuja al final de la última página
-    page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
-        x: marginLeft,
-        y: 30,
-        size: 7,
-        font,
-        color: rgb(0.5, 0.5, 0.5)
+    // ==========================================================================
+    // 8. PIE DE PÁGINA GLOBAL (Texto legal y Paginación)
+    // ==========================================================================
+
+    // Obtenemos todas las páginas del documento para iterar sobre ellas
+    const pages = pdfDoc.getPages()
+    const totalPages = pages.length
+
+    pages.forEach((p, index) => {
+        // Texto legal (Izquierda)
+        p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
+            x: marginLeft,
+            y: 30,
+            size: 7,
+            font: font,
+            color: rgb(0.5, 0.5, 0.5)
+        })
+
+        // Paginación (Derecha) - "Página X de Y"
+        const pageNumberText = `Página ${index + 1} de ${totalPages}`
+        const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
+
+        p.drawText(pageNumberText, {
+            x: marginRight - textWidth, // Alineado a la derecha
+            y: 30,                      // Misma altura que el texto legal
+            size: 8,
+            font: fontBold,             // Usamos negrita para que resalte un poco más
+            color: rgb(0.5, 0.5, 0.5)
+        })
     })
 
     // ==========================================================================
-    // 8. GENERACIÓN DEL ARCHIVO Y COMPARTIR
+    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR
     // ==========================================================================
 
     const pdfBytes = await pdfDoc.save()
