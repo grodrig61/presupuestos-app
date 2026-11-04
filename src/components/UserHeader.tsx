@@ -20,9 +20,10 @@ export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onLogout, most
                     <p>CUIT: {perfil.cuit}</p>
                 </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+
+            <div className="user-actions">
                 {mostrarBotonVolver && (
-                    <button className="btn btn-secondary" onClick={onVolver}>← Volver a Inicio</button>
+                    <button className="btn btn-secondary" onClick={onVolver}>← Volver</button>
                 )}
                 <button className="btn btn-secondary" onClick={onVerPerfil}>👤 Mi Perfil</button>
                 <button className="btn btn-secondary" onClick={onVerHistorial}>📁 Mis Presupuestos</button>
