@@ -1,5 +1,4 @@
-// src/components/UserHeader.tsx (Reemplaza todo tu archivo con este)
-
+// src/components/UserHeader.tsx
 import type { Perfil } from '../types'
 
 interface Props {
@@ -10,7 +9,6 @@ interface Props {
     onLogout: () => void;
     mostrarBotonVolver?: boolean;
     onVolver?: () => void;
-    // NUEVAS PROPS PARA EL CARRITO
     itemsCount?: number;
     onVerCarrito?: () => void;
 }
@@ -41,7 +39,6 @@ export const UserHeader = ({
                     <button className="btn btn-secondary" onClick={onVolver}>← Volver</button>
                 )}
 
-                {/* BOTÓN DEL CARRITO: Solo aparece si hay ítems */}
                 {itemsCount > 0 && onVerCarrito && (
                     <button
                         className="btn"
