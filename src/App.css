@@ -9,31 +9,22 @@
    1. VARIABLES GLOBALES DE DISEÑO
    ========================================================================== */
 :root {
-  /* Paleta de colores principales */
+  /* Paleta de colores principales de la marca */
   --primary: #2563eb;
-  /* Azul principal de la marca */
   --primary-hover: #1d4ed8;
-  /* Azul más oscuro para el estado hover */
 
-  /* Colores de fondo */
+  /* Colores de fondo de la interfaz */
   --bg: #f1f5f9;
-  /* Fondo general de la aplicación (gris muy claro) */
   --surface: #ffffff;
-  /* Fondo de tarjetas y paneles (blanco puro) */
 
-  /* Colores de texto */
+  /* Colores de texto para legibilidad */
   --text: #0f172a;
-  /* Texto principal (casi negro) */
   --text-light: #64748b;
-  /* Texto secundario o deshabilitado (gris) */
 
-  /* Bordes y detalles */
+  /* Colores para bordes, estados y alertas */
   --border: #e2e8f0;
-  /* Color de los bordes divisores y contornos */
   --success: #10b981;
-  /* Verde para acciones exitosas o botones de PDF */
   --danger: #ef4444;
-  /* Rojo para errores */
 }
 
 /* ==========================================================================
@@ -45,19 +36,32 @@
 }
 
 body {
+  /* Elimina el margen por defecto del navegador */
   margin: 0;
+
+  /* Define la tipografía principal */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Aplica el color de fondo general */
   background-color: var(--bg);
+
+  /* Aplica el color de texto principal */
   color: var(--text);
+
   /* Suaviza las fuentes en pantallas de alta densidad (Retina/Apple) */
   -webkit-font-smoothing: antialiased;
 }
 
 #root {
+  /* Asegura que el contenedor principal ocupe todo el ancho */
   width: 100%;
   max-width: 100%;
+
+  /* Resetea márgenes y padding */
   margin: 0;
   padding: 0;
+
+  /* Alinea el texto a la izquierda por defecto */
   text-align: left;
 }
 
@@ -65,11 +69,19 @@ body {
    3. CONTENEDOR PRINCIPAL Y ESTRUCTURA
    ========================================================================== */
 .app-wrapper {
+  /* Ocupa todo el ancho disponible */
   width: 100%;
+
   /* Ancho máximo para que no se estire demasiado en monitores gigantes */
   max-width: 1600px;
+
+  /* Centra el contenido en la pantalla */
   margin: 0 auto;
+
+  /* Espaciado interno */
   padding: 20px;
+
+  /* Asegura que el fondo cubra toda la altura de la pantalla */
   min-height: 100vh;
 }
 
@@ -77,23 +89,44 @@ body {
    4. CABECERAS DE PÁGINA (Títulos de sección)
    ========================================================================== */
 .page-header {
+  /* Alinea el texto a la izquierda */
   text-align: left;
+
+  /* Espacio inferior */
   margin-bottom: 20px;
+
+  /* Usa flexbox para alinear los elementos en una fila */
   display: flex;
+
+  /* Distribuye el espacio entre los elementos */
   justify-content: space-between;
+
+  /* Centra los elementos verticalmente */
   align-items: center;
 }
 
 .page-header h1 {
+  /* Tamaño de la fuente del título */
   font-size: 1.4rem;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Grosor de la fuente */
   font-weight: 700;
+
+  /* Elimina el margen por defecto */
   margin: 0;
 }
 
 .page-header p {
+  /* Color del texto secundario */
   color: var(--text-light);
+
+  /* Tamaño de la fuente */
   font-size: 0.9rem;
+
+  /* Elimina el margen por defecto */
   margin: 0;
 }
 
@@ -103,39 +136,56 @@ body {
 
 /* Grilla para las tarjetas de categorías (Familias y Rubros) */
 .grid-rubros {
+  /* Usa CSS Grid */
   display: grid;
-  grid-template-columns: 1fr;
+
   /* 1 sola columna por defecto en celulares */
+  grid-template-columns: 1fr;
+
+  /* Espacio entre las tarjetas */
   gap: 12px;
+
+  /* El contenedor de tarjetas tiene z-index base 1 para no tapar menús */
+  position: relative;
+  z-index: 1;
 }
 
+/* Media query para tablets y pantallas más grandes */
 @media (min-width: 600px) {
   .grid-rubros {
+    /* 2 columnas en pantallas más grandes */
     grid-template-columns: repeat(2, 1fr);
-    /* 2 columnas en tablets y PC */
   }
 }
 
 /* Grilla para los 4 paneles del formulario de cálculo */
 .dashboard-grid {
+  /* Usa CSS Grid */
   display: grid;
+
+  /* 1 columna por defecto */
   grid-template-columns: 1fr;
+
+  /* Espacio entre paneles */
   gap: 15px;
+
   /* Hace que todos los paneles de una fila midan lo mismo de alto */
   align-items: stretch;
 }
 
+/* Media query para tablets */
 @media (min-width: 768px) {
   .dashboard-grid {
-    grid-template-columns: repeat(2, 1fr);
     /* 2 columnas en tablets */
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
+/* Media query para computadoras de escritorio */
 @media (min-width: 1200px) {
   .dashboard-grid {
-    grid-template-columns: repeat(4, 1fr);
     /* 4 columnas en pantallas grandes */
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -143,30 +193,66 @@ body {
    6. PANELES Y TARJETAS
    ========================================================================== */
 .panel {
+  /* Fondo blanco para las tarjetas */
   background: var(--surface);
+
+  /* Borde sutil */
   border: 1px solid var(--border);
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Espaciado interno */
   padding: 15px;
+
+  /* Sombra suave para dar profundidad */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  /* Usa flexbox para organizar el contenido interno */
   display: flex;
+
+  /* Organiza los elementos en columna */
   flex-direction: column;
+
+  /* Necesario para posicionar la línea de color superior */
   position: relative;
 
-  /* FIX CRÍTICO: Cambiamos 'hidden' por 'visible' para que el menú de estado 
-     pueda salir de la tarjeta y flotar por encima de las demás */
+  /* CRÍTICO: 'visible' permite que los menús flotantes de los filtros salgan del panel */
   overflow: visible;
+}
+
+/* CLASE ESPECIAL PARA EL PANEL DE FILTROS (Z-INDEX ALTO) */
+.panel-filtros {
+  /* Posición relativa para crear un contexto de apilamiento */
+  position: relative;
+
+  /* Z-index alto para que se dibuje POR ENCIMA de las tarjetas de presupuestos */
+  z-index: 100;
+
+  /* Margen inferior para separarlo de las tarjetas */
+  margin-bottom: 20px;
+
+  /* Espaciado interno */
+  padding: 15px;
 }
 
 /* Línea decorativa superior de colores según el panel */
 .panel::before {
+  /* Contenido vacío necesario para el pseudo-elemento */
   content: '';
+
+  /* Posicionamiento absoluto */
   position: absolute;
+
   /* Ajustamos los límites para que cubra exactamente el borde superior */
   top: -1px;
   left: -1px;
   right: -1px;
+
+  /* Altura de la línea */
   height: 4px;
-  /* Le damos border-radius para que la línea no se salga de las esquinas curvas */
+
+  /* Redondea las esquinas superiores para que coincidan con el panel */
   border-radius: 8px 8px 0 0;
 }
 
@@ -192,13 +278,28 @@ body {
 }
 
 .panel h3 {
+  /* Elimina el margen superior */
   margin-top: 0;
+
+  /* Espacio inferior */
   margin-bottom: 12px;
+
+  /* Tamaño de la fuente */
   font-size: 0.95rem;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Grosor de la fuente */
   font-weight: 700;
+
+  /* Línea divisoria inferior */
   border-bottom: 1px solid var(--border);
+
+  /* Espacio entre el texto y la línea */
   padding-bottom: 8px;
+
+  /* Alineación del texto */
   text-align: left;
 }
 
@@ -206,35 +307,66 @@ body {
    7. TARJETAS DE RESUMEN (KPIs del Reporte de Gestión)
    ========================================================================== */
 .kpi-card {
+  /* Alineación del texto */
   text-align: center;
+
+  /* Espaciado interno */
   padding: 25px 15px;
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Dirección de los elementos */
   flex-direction: column;
+
+  /* Centra verticalmente el contenido */
   justify-content: center;
+
+  /* Centra horizontalmente el contenido */
   align-items: center;
 }
 
 .kpi-title {
+  /* Elimina el margen */
   margin: 0;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Tamaño de la fuente */
   font-size: 0.85rem;
+
+  /* Transforma el texto a mayúsculas */
   text-transform: uppercase;
+
+  /* Grosor de la fuente */
   font-weight: 600;
+
+  /* Espacio entre letras */
   letter-spacing: 0.5px;
 }
 
 .kpi-value {
+  /* Tamaño grande para los números */
   font-size: 1.8rem;
+
+  /* Grosor de la fuente */
   font-weight: 700;
+
+  /* Espacio superior */
   margin-top: 10px;
+
   /* Evita que números muy grandes rompan el diseño */
   word-break: break-word;
+
+  /* Altura de línea */
   line-height: 1.2;
 }
 
 /* Ajuste de fuente para celulares muy pequeños */
 @media (max-width: 400px) {
   .kpi-value {
+    /* Reduce el tamaño en pantallas chicas */
     font-size: 1.4rem;
   }
 }
@@ -243,32 +375,68 @@ body {
    8. FORMULARIOS E INPUTS
    ========================================================================== */
 .input-group {
+  /* Usa flexbox */
   display: flex;
+
+  /* Organiza en columna */
   flex-direction: column;
+
+  /* Espacio inferior entre grupos */
   margin-bottom: 10px;
 }
 
 .input-group label {
+  /* Tamaño de la fuente */
   font-size: 0.75rem;
+
+  /* Grosor de la fuente */
   font-weight: 600;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Espacio inferior */
   margin-bottom: 4px;
+
+  /* Alineación */
   text-align: left;
+
+  /* Comportamiento de bloque */
   display: block;
 }
 
+/* Estilos generales para inputs, selects y textareas */
 .input-group input,
 .input-group select,
 .input-group textarea {
+  /* Espaciado interno */
   padding: 8px 10px;
+
+  /* Borde */
   border: 1px solid var(--border);
+
+  /* Bordes redondeados */
   border-radius: 6px;
+
+  /* Tamaño de fuente */
   font-size: 0.85rem;
+
+  /* Hereda la tipografía */
   font-family: inherit;
+
+  /* Color de fondo */
   background: #f8fafc;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Ancho completo */
   width: 100%;
+
+  /* Alineación del texto */
   text-align: left;
+
+  /* Transición suave para efectos */
   transition: all 0.2s ease;
 }
 
@@ -276,9 +444,16 @@ body {
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
+  /* Elimina el contorno por defecto */
   outline: none;
+
+  /* Cambia el color del borde */
   border-color: var(--primary);
+
+  /* Fondo blanco al enfocar */
   background: #ffffff;
+
+  /* Sombra exterior para resaltar */
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
@@ -286,71 +461,147 @@ body {
    9. BOTONES GENERALES
    ========================================================================== */
 .btn {
+  /* Elimina el borde por defecto */
   border: none;
+
+  /* Bordes redondeados */
   border-radius: 6px;
+
+  /* Tamaño de fuente */
   font-size: 0.85rem;
+
+  /* Grosor de la fuente */
   font-weight: 600;
+
+  /* Cursor tipo puntero */
   cursor: pointer;
+
+  /* Transición suave */
   transition: all 0.2s ease;
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Centra el contenido */
   justify-content: center;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre ícono y texto */
   gap: 6px;
 }
 
+/* Botón principal (Azul) */
 .btn-primary {
+  /* Color de fondo */
   background: var(--primary);
+
+  /* Color del texto */
   color: white;
+
+  /* Espaciado interno */
   padding: 10px 16px;
+
+  /* Ancho completo */
   width: 100%;
 }
 
 .btn-primary:hover {
+  /* Color más oscuro al pasar el mouse */
   background: var(--primary-hover);
 }
 
+/* Botón de éxito (Verde) */
 .btn-success {
+  /* Color de fondo */
   background: var(--success);
+
+  /* Color del texto */
   color: white;
+
+  /* Espaciado interno */
   padding: 12px;
+
+  /* Tamaño de fuente */
   font-size: 0.95rem;
+
+  /* Sombra */
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .btn-success:hover {
+  /* Color más oscuro al pasar el mouse */
   background: #059669;
 }
 
+/* Botón secundario (Blanco con borde) */
 .btn-secondary {
+  /* Fondo blanco */
   background: white;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Borde */
   border: 1px solid var(--border);
+
+  /* Espaciado interno */
   padding: 6px 12px;
+
+  /* Tamaño de fuente */
   font-size: 0.8rem;
+
+  /* Quita la decoración del texto */
   text-decoration: none;
+
+  /* Comportamiento en línea */
   display: inline-block;
+
+  /* Cursor */
   cursor: pointer;
 }
 
 .btn-secondary:hover {
+  /* Fondo gris al pasar el mouse */
   background: var(--bg);
 }
 
-/* Botón de alternancia (Toggle) para los gráficos del reporte */
+/* Botón de alternancia (Toggle) */
 .btn-toggle {
+  /* Fondo gris claro */
   background: #f1f5f9;
+
+  /* Borde */
   border: 1px solid var(--border);
+
+  /* Espaciado interno */
   padding: 6px 12px;
+
+  /* Bordes muy redondeados */
   border-radius: 20px;
+
+  /* Tamaño de fuente */
   font-size: 0.8rem;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Transición */
   transition: all 0.2s ease;
 }
 
 .btn-toggle.active {
+  /* Fondo azul cuando está activo */
   background: var(--primary);
+
+  /* Texto blanco */
   color: white;
+
+  /* Borde azul */
   border-color: var(--primary);
 }
 
@@ -358,153 +609,321 @@ body {
    10. TARJETAS DE SELECCIÓN (Categorías y Rubros)
    ========================================================================== */
 .card-select {
+  /* Fondo blanco */
   background: var(--surface);
+
+  /* Borde */
   border: 1px solid var(--border);
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Espaciado interno */
   padding: 16px;
+
+  /* Alineación del texto */
   text-align: left;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Transición */
   transition: all 0.2s ease;
+
+  /* Sombra sutil */
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Distribuye el espacio */
   justify-content: space-between;
+
+  /* Tamaño de fuente */
   font-size: 0.95rem;
+
+  /* Grosor de la fuente */
   font-weight: 600;
+
+  /* Color del texto */
   color: var(--text);
 }
 
 .card-select:hover {
+  /* Borde azul al pasar el mouse */
   border-color: var(--primary);
+
+  /* Eleva ligeramente la tarjeta */
   transform: translateY(-1px);
+
+  /* Sombra más pronunciada */
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
 /* Flecha decorativa a la derecha de la tarjeta */
 .card-select::after {
+  /* Contenido de la flecha */
   content: "→";
+
+  /* Color azul */
   color: var(--primary);
+
+  /* Tamaño de la flecha */
   font-size: 1rem;
 }
 
 /* ==========================================================================
-   11. RESULTADOS DEL CÁLCULO (Lista en el Panel 4)
+   11. RESULTADOS DEL CÁLCULO
    ========================================================================== */
 .resultado-item {
+  /* Usa flexbox */
   display: flex;
+
+  /* Distribuye el espacio */
   justify-content: space-between;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espaciado vertical */
   padding: 6px 0;
+
+  /* Línea divisoria inferior */
   border-bottom: 1px solid var(--border);
+
+  /* Tamaño de fuente */
   font-size: 0.85rem;
+
+  /* Espacio entre elementos */
   gap: 10px;
 }
 
 .resultado-item span {
+  /* Permite que el texto se rompa si es muy largo */
   word-break: break-word;
+
+  /* Alineación */
   text-align: left;
 }
 
 .resultado-item strong {
+  /* Alineación a la derecha para los números */
   text-align: right;
 }
 
 .resultado-item:last-child {
+  /* Elimina la línea del último elemento */
   border-bottom: none;
 }
 
-/* Estado vacío (cuando no hay resultados aún) */
 .empty-state {
+  /* Usa flexbox */
   display: flex;
+
+  /* Centra verticalmente */
   align-items: center;
+
+  /* Centra horizontalmente */
   justify-content: center;
+
+  /* Altura mínima */
   min-height: 100px;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Alineación */
   text-align: center;
+
+  /* Tamaño de fuente */
   font-size: 0.85rem;
+
+  /* Estilo cursiva */
   font-style: italic;
 }
 
-/* Contenedor del botón de generar PDF */
 .pdf-action-container {
+  /* Espacio superior */
   margin-top: 20px;
+
+  /* Ancho máximo */
   max-width: 400px;
+
+  /* Centrado horizontal */
   margin-left: auto;
   margin-right: auto;
 }
 
 /* ==========================================================================
-   12. BANNERS FLOTANTES (TOASTS) DE ERROR Y ÉXITO
+   12. BANNERS FLOTANTES (TOASTS)
    ========================================================================== */
 .error-banner {
+  /* Posición fija en la pantalla */
   position: fixed;
+
+  /* Distancia desde arriba y la derecha */
   top: 20px;
   right: 20px;
+
+  /* Fondo rojo claro */
   background-color: #fef2f2;
+
+  /* Borde izquierdo rojo */
   border-left: 4px solid var(--danger);
+
+  /* Color del texto */
   color: #b91c1c;
+
+  /* Espaciado */
   padding: 16px 20px;
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Distribuye el espacio */
   justify-content: space-between;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre elementos */
   gap: 15px;
+
+  /* Tamaño de fuente */
   font-size: 0.95rem;
+
+  /* Grosor */
   font-weight: 500;
+
+  /* Sombra */
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Asegura que esté por encima de todo */
   z-index: 9999;
+
+  /* Animación de entrada */
   animation: slideInRight 0.3s ease-out;
+
+  /* Ancho máximo */
   max-width: 400px;
 }
 
 .error-banner button {
+  /* Fondo transparente */
   background: none;
+
+  /* Sin borde */
   border: none;
+
+  /* Color del texto */
   color: #b91c1c;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Grosor */
   font-weight: bold;
+
+  /* Tamaño */
   font-size: 1.1rem;
+
+  /* Espaciado */
   padding: 0 5px;
 }
 
 .success-banner {
+  /* Posición fija en la pantalla */
   position: fixed;
+
+  /* Distancia desde arriba y la derecha */
   top: 20px;
   right: 20px;
+
+  /* Fondo verde claro */
   background-color: #f0fdf4;
+
+  /* Borde izquierdo verde */
   border-left: 4px solid #22c55e;
+
+  /* Color del texto */
   color: #15803d;
+
+  /* Espaciado */
   padding: 16px 20px;
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Distribuye el espacio */
   justify-content: space-between;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre elementos */
   gap: 15px;
+
+  /* Tamaño de fuente */
   font-size: 0.95rem;
+
+  /* Grosor */
   font-weight: 500;
+
+  /* Sombra */
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Asegura que esté por encima de todo */
   z-index: 9999;
+
+  /* Animación de entrada */
   animation: slideInRight 0.3s ease-out;
+
+  /* Ancho máximo */
   max-width: 400px;
 }
 
 .success-banner button {
+  /* Fondo transparente */
   background: none;
+
+  /* Sin borde */
   border: none;
+
+  /* Color del texto */
   color: #15803d;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Grosor */
   font-weight: bold;
+
+  /* Tamaño */
   font-size: 1.1rem;
+
+  /* Espaciado */
   padding: 0 5px;
 }
 
+/* Animación de entrada desde la derecha */
 @keyframes slideInRight {
   from {
+    /* Inicia transparente y desplazado a la derecha */
     opacity: 0;
     transform: translateX(50px);
   }
 
   to {
+    /* Termina opaco y en su posición original */
     opacity: 1;
     transform: translateX(0);
   }
@@ -514,210 +933,492 @@ body {
    13. PANTALLAS DE LOGIN Y PERFIL (Autenticación)
    ========================================================================== */
 .auth-container {
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Centra horizontalmente */
   justify-content: center;
+
+  /* Altura mínima de la pantalla */
   min-height: 100vh;
+
+  /* Color de fondo */
   background-color: var(--bg);
+
+  /* Espaciado */
   padding: 20px;
 }
 
 .auth-card {
+  /* Fondo blanco */
   background: var(--surface);
+
+  /* Espaciado interno */
   padding: 40px;
+
+  /* Bordes redondeados */
   border-radius: 12px;
+
+  /* Sombra */
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* Ancho completo */
   width: 100%;
+
+  /* Ancho máximo */
   max-width: 450px;
+
+  /* Borde superior azul */
   border-top: 5px solid var(--primary);
 }
 
 .auth-card h2 {
+  /* Elimina margen superior */
   margin-top: 0;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Alineación centrada */
   text-align: center;
+
+  /* Espacio inferior */
   margin-bottom: 10px;
 }
 
 .auth-card p {
+  /* Alineación centrada */
   text-align: center;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Espacio inferior */
   margin-bottom: 30px;
+
+  /* Tamaño de fuente */
   font-size: 0.9rem;
 }
 
 /* ==========================================================================
-   14. HEADER DEL USUARIO LOGUEADO (Barra Superior)
+   14. HEADER DEL USUARIO LOGUEADO
    ========================================================================== */
 .user-header {
+  /* Usa flexbox */
   display: flex;
+
+  /* Distribuye el espacio */
   justify-content: space-between;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Fondo blanco */
   background: var(--surface);
+
+  /* Espaciado */
   padding: 15px 20px;
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Espacio inferior */
   margin-bottom: 20px;
+
+  /* Sombra sutil */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  /* Permite que los elementos bajen de línea */
   flex-wrap: wrap;
+
+  /* Espacio entre elementos */
   gap: 15px;
 }
 
 .user-info {
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre elementos */
   gap: 15px;
+
+  /* Ocupa el espacio disponible */
   flex: 1;
 }
 
 .user-logo {
+  /* Tamaño del logo */
   width: 40px;
   height: 40px;
+
+  /* Forma circular */
   border-radius: 50%;
+
+  /* Ajusta la imagen al contenedor */
   object-fit: cover;
+
+  /* Fondo gris de respaldo */
   background: #e2e8f0;
 }
 
 .user-info h4 {
+  /* Elimina margen */
   margin: 0;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Tamaño de fuente */
   font-size: 1rem;
+
+  /* Evita saltos de línea */
   white-space: nowrap;
+
+  /* Oculta el desbordamiento */
   overflow: hidden;
+
+  /* Muestra puntos suspensivos si es muy largo */
   text-overflow: ellipsis;
+
+  /* Ancho máximo */
   max-width: 200px;
 }
 
 .user-info p {
+  /* Elimina margen */
   margin: 0;
+
+  /* Color del texto */
   color: var(--text-light);
+
+  /* Tamaño de fuente */
   font-size: 0.8rem;
 }
 
 .user-actions {
+  /* Usa flexbox */
   display: flex;
+
+  /* Espacio entre elementos */
   gap: 10px;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Permite que los botones bajen de línea */
   flex-wrap: wrap;
 }
 
 /* Adaptación para móviles */
 @media (max-width: 600px) {
   .user-actions {
+    /* Ancho completo en celulares */
     width: 100%;
+
+    /* Centra los botones */
     justify-content: center;
   }
 
   .user-actions .btn {
+    /* Ocupa casi la mitad del ancho */
     flex: 1 1 40%;
+
+    /* Espaciado ajustado */
     padding: 8px 4px;
+
+    /* Fuente más chica */
     font-size: 0.75rem;
+
+    /* Evita saltos de línea */
     white-space: nowrap;
   }
 
   .user-info h4 {
+    /* Ancho máximo en celulares */
     max-width: 150px;
   }
 }
 
 /* ==========================================================================
-   15. ACCIONES DEL HISTORIAL Y POPOVER (El fix está acá)
+   15. ACCIONES DEL HISTORIAL Y POPOVER
    ========================================================================== */
 
-/* Contenedor de las acciones en la tarjeta */
+/* Contenedor de los botones de acción en la tarjeta */
 .acciones-tarjeta {
+  /* Usa flexbox */
   display: flex;
+
+  /* Espacio entre elementos */
   gap: 10px;
+
+  /* Alinea verticalmente */
   align-items: center;
 }
 
-/* Contenedor del popover: DEBE tener z-index alto para superponerse a otras tarjetas */
+/* Contenedor del popover (Menús flotantes) */
 .contenedor-popover {
+  /* Posición relativa para contener el menú absoluto */
   position: relative;
-  z-index: 20;
-  /* Eleva el contenedor por encima de las tarjetas de abajo */
+
+  /* Asegura que esté por encima de otros elementos */
+  z-index: 50;
 }
 
-/* Botón que muestra el estado actual (Píldora) */
+/* Botón que muestra el estado actual */
 .btn-estado {
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre elementos */
   gap: 6px;
+
+  /* Espaciado */
   padding: 6px 12px;
+
+  /* Bordes redondeados */
   border-radius: 20px;
+
+  /* Tamaño de fuente */
   font-size: 0.8rem;
+
+  /* Grosor */
   font-weight: 600;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Borde transparente por defecto */
   border: 1px solid transparent;
+
+  /* Transición */
   transition: all 0.2s ease;
 }
 
 /* Colores del botón según el estado */
 .btn-estado.pendiente {
+  /* Fondo amarillo claro */
   background-color: #fef9c3;
+
+  /* Texto marrón */
   color: #854d0e;
+
+  /* Borde amarillo */
   border-color: #fde047;
 }
 
 .btn-estado.aprobado {
+  /* Fondo verde claro */
   background-color: #dcfce7;
+
+  /* Texto verde oscuro */
   color: #166534;
+
+  /* Borde verde */
   border-color: #86efac;
 }
 
 .btn-estado.rechazado {
+  /* Fondo rojo claro */
   background-color: #fee2e2;
+
+  /* Texto rojo oscuro */
   color: #991b1b;
+
+  /* Borde rojo */
   border-color: #fca5a5;
 }
 
 .btn-estado:hover {
+  /* Brillo al pasar el mouse */
   filter: brightness(0.95);
 }
 
-/* El menú flotante desplegable */
-.menu-estado {
-  position: absolute;
-  top: 110%;
-  /* Se abre un poquito más abajo del botón */
-  right: 0;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  /* Sombra más fuerte */
-  z-index: 100;
-  /* Asegura que esté por encima de TODO */
-  min-width: 140px;
-  padding: 4px;
+/* Botón genérico para los filtros (parece un input) */
+.btn-filtro {
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
+  align-items: center;
+
+  /* Distribuye el espacio */
+  justify-content: space-between;
+
+  /* Espaciado */
+  padding: 8px 10px;
+
+  /* Borde */
+  border: 1px solid var(--border);
+
+  /* Bordes redondeados */
+  border-radius: 6px;
+
+  /* Fondo gris claro */
+  background: #f8fafc;
+
+  /* Color del texto */
+  color: var(--text);
+
+  /* Tamaño de fuente */
+  font-size: 0.85rem;
+
+  /* Hereda la tipografía */
+  font-family: inherit;
+
+  /* Cursor */
+  cursor: pointer;
+
+  /* Transición */
+  transition: all 0.2s ease;
+
+  /* Ancho completo */
+  width: 100%;
+
+  /* Alineación */
+  text-align: left;
+}
+
+.btn-filtro:hover {
+  /* Borde azul al pasar el mouse */
+  border-color: var(--primary);
+}
+
+.btn-filtro:disabled {
+  /* Opacidad reducida si está deshabilitado */
+  opacity: 0.6;
+
+  /* Cursor no permitido */
+  cursor: not-allowed;
+}
+
+.btn-filtro span {
+  /* Evita saltos de línea */
+  white-space: nowrap;
+
+  /* Oculta desbordamiento */
+  overflow: hidden;
+
+  /* Puntos suspensivos */
+  text-overflow: ellipsis;
+}
+
+/* El menú flotante desplegable (para estados y filtros) */
+.menu-estado,
+.menu-filtro {
+  /* Posición absoluta respecto al contenedor */
+  position: absolute;
+
+  /* Se abre un poquito más abajo del botón */
+  top: 110%;
+
+  /* Alineado a la derecha */
+  right: 0;
+
+  /* Fondo blanco */
+  background: white;
+
+  /* Borde */
+  border: 1px solid var(--border);
+
+  /* Bordes redondeados */
+  border-radius: 8px;
+
+  /* Sombra pronunciada */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Asegura que esté por encima de TODO */
+  z-index: 9999;
+
+  /* Espaciado interno */
+  padding: 4px;
+
+  /* Usa flexbox */
+  display: flex;
+
+  /* Organiza en columna */
   flex-direction: column;
 }
 
-/* Ítems del menú */
-.menu-estado button {
+.menu-estado {
+  /* Ancho mínimo */
+  min-width: 140px;
+}
+
+.menu-filtro {
+  /* Ancho mínimo */
+  min-width: 100%;
+
+  /* Altura máxima con scroll */
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Ítems de los menús */
+.menu-estado button,
+.menu-filtro button {
+  /* Fondo transparente */
   background: none;
+
+  /* Sin borde */
   border: none;
+
+  /* Espaciado */
   padding: 8px 12px;
+
+  /* Alineación */
   text-align: left;
+
+  /* Tamaño de fuente */
   font-size: 0.85rem;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Bordes redondeados */
   border-radius: 4px;
+
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre elementos */
   gap: 8px;
+
+  /* Color del texto */
   color: var(--text);
+
+  /* Transición */
   transition: background 0.1s;
 }
 
-.menu-estado button:hover {
+.menu-estado button:hover,
+.menu-filtro button:hover {
+  /* Fondo gris al pasar el mouse */
   background-color: var(--bg);
 }
 
-/* Puntitos de colores para el menú */
+/* Puntitos de colores */
 .dot-color {
+  /* Tamaño */
   width: 8px;
   height: 8px;
+
+  /* Forma circular */
   border-radius: 50%;
+
+  /* Evita que se achique */
+  flex-shrink: 0;
 }
 
 .dot-pendiente {
@@ -734,52 +1435,235 @@ body {
 
 /* Botón de ícono genérico (Duplicar) */
 .btn-icono {
+  /* Centra el contenido */
   display: flex;
   justify-content: center;
   align-items: center;
+
+  /* Tamaño fijo */
   width: 36px;
   height: 36px;
+
+  /* Bordes redondeados */
   border-radius: 8px;
+
+  /* Borde */
   border: 1px solid var(--border);
+
+  /* Fondo blanco */
   background: white;
+
+  /* Color del ícono */
   color: var(--text-light);
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Transición */
   transition: all 0.2s ease;
 }
 
 .btn-icono:hover {
+  /* Fondo gris al pasar el mouse */
   background: var(--bg);
+
+  /* Borde azul */
   border-color: var(--primary);
+
+  /* Ícono azul */
   color: var(--primary);
 }
 
 /* Botón de Descarga de PDF */
 .btn-descarga {
+  /* Usa flexbox */
   display: flex;
+
+  /* Alinea verticalmente */
   align-items: center;
+
+  /* Espacio entre ícono y texto */
   gap: 6px;
+
+  /* Fondo blanco */
   background-color: white;
+
+  /* Borde azul */
   border: 1px solid var(--primary);
+
+  /* Texto azul */
   color: var(--primary);
+
+  /* Espaciado */
   padding: 6px 12px;
+
+  /* Bordes redondeados */
   border-radius: 6px;
+
+  /* Tamaño de fuente */
   font-size: 0.8rem;
+
+  /* Grosor */
   font-weight: 600;
+
+  /* Cursor */
   cursor: pointer;
+
+  /* Transición */
   transition: all 0.2s ease;
 }
 
 .btn-descarga:hover {
+  /* Fondo azul al pasar el mouse */
   background-color: var(--primary);
+
+  /* Texto blanco */
   color: white;
 }
 
 .btn-descarga svg {
+  /* Tamaño del ícono */
   width: 16px;
   height: 16px;
+
+  /* Color del trazo */
   stroke: currentColor;
+
+  /* Grosor del trazo */
   stroke-width: 2;
+
+  /* Sin relleno */
   fill: none;
+
+  /* Extremos redondeados */
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* ==========================================================================
+   16. NUEVAS CLASES PARA EL MINI-CRM Y ALERTAS
+   ========================================================================== */
+
+/* Tablero de resumen (Tarjetas de estados en el historial y reporte) */
+.crm-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.crm-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-left: 4px solid var(--border);
+}
+
+.crm-card.pendiente {
+  border-left-color: #eab308;
+}
+
+.crm-card.aprobado {
+  border-left-color: #22c55e;
+}
+
+.crm-card.rechazado {
+  border-left-color: #ef4444;
+}
+
+.crm-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.crm-card .monto {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.crm-card .cantidad {
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+
+/* Alerta de presupuesto vencido */
+.alerta-vencido {
+  display: inline-block;
+  background-color: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #ffedd5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+/* Botón de Recordatorio de WhatsApp (Solo se muestra en celular) */
+.btn-recordar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #25D366;
+  /* Color oficial de WhatsApp */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  gap: 4px;
+}
+
+.btn-recordar:hover {
+  background-color: #128C7E;
+  transform: scale(1.05);
+}
+
+/* Lista de sugerencias para autocompletar clientes */
+.sugerencias-clientes {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  z-index: 999;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.sugerencias-clientes li {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.sugerencias-clientes li:hover {
+  background-color: var(--bg);
+}
+
+.sugerencias-clientes li:last-child {
+  border-bottom: none;
+}
+
+.sugerencias-clientes small {
+  color: var(--text-light);
 }

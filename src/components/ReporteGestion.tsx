@@ -1,4 +1,5 @@
-// src/components/ReporteGestion.tsx
+// ReporteGestion.tsx (Reemplaza todo tu archivo con este)
+
 import { useMemo, useState } from 'react'
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,9 +15,9 @@ interface Props {
 
 const COLORES_PIE = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#64748b'];
 const COLORES_ESTADOS = {
-    pendiente: '#eab308', // Amarillo
-    aprobado: '#22c55e',  // Verde
-    rechazado: '#ef4444'  // Rojo
+    pendiente: '#eab308',
+    aprobado: '#22c55e',
+    rechazado: '#ef4444'
 };
 
 export const ReporteGestion = ({ historial, familias }: Props) => {
@@ -33,14 +34,14 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
 
     // 2. DATOS PARA EL GRÁFICO DE BARRAS
     const datosMeses = useMemo(() => {
-        const meses: Record<string, number> = {};
+        const meses: Record<string, any> = {}; // Cambiado a any para evitar error de TS
         const hoy = new Date();
         for (let i = 5; i >= 0; i--) {
             const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
             const clave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
             const label = d.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }).toUpperCase();
             meses[clave] = 0;
-            meses[`${clave}-label`] = label as any;
+            meses[`${clave}-label`] = label;
         }
         historial.forEach(p => {
             const fecha = new Date(p.creado_en);
@@ -52,20 +53,34 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             .map(clave => ({ mes: meses[`${clave}-label`], total: meses[clave] }));
     }, [historial]);
 
-    // 3. DATOS PARA EL GRÁFICO DE TORTA (Categorías/Rubros)
+    // 3. DATOS PARA EL GRÁFICO DE TORTA (Categorías/Rubros) - LÓGICA CORREGIDA
     const datosTorta = useMemo(() => {
         const conteo: Record<string, number> = {};
         historial.forEach(p => {
-            let nombreItem = '';
-            const familia = familias.find((f: Familia) => f.rubros.some((r: Rubro) => r.id === p.rubro_id));
-            const nombreCategoria = p.datos_entrada.familiaNombre || familia?.nombre || 'Otros';
+            let nombreItem = 'Otros';
+            let nombreCategoria = 'Otros';
 
-            if (tipoGrafico === 'categoria') {
-                nombreItem = nombreCategoria;
-            } else {
-                const nombreRubro = p.datos_entrada.rubroNombre || 'Otros';
-                nombreItem = `${nombreCategoria} > ${nombreRubro}`;
+            // Buscamos los datos dentro del array 'items' del carrito
+            if (p.datos_entrada?.items && p.datos_entrada.items.length > 0) {
+                const primerItem = p.datos_entrada.items[0];
+                const rubroId = primerItem.rubro?.id;
+
+                // Buscamos a qué familia pertenece ese rubro
+                const familia = familias.find((f: Familia) => f.rubros.some((r: Rubro) => r.id === rubroId));
+                nombreCategoria = familia?.nombre || 'Otros';
+
+                if (tipoGrafico === 'categoria') {
+                    nombreItem = nombreCategoria;
+                } else {
+                    const nombreRubro = primerItem.rubro?.nombre || 'Otros';
+                    nombreItem = `${nombreCategoria} > ${nombreRubro}`;
+                }
+            } else if (p.datos_entrada?.familiaNombre) {
+                // Fallback por si hay presupuestos viejos guardados
+                nombreCategoria = p.datos_entrada.familiaNombre;
+                nombreItem = tipoGrafico === 'categoria' ? nombreCategoria : `${nombreCategoria} > ${p.datos_entrada.rubroNombre || 'Otros'}`;
             }
+
             if (!conteo[nombreItem]) conteo[nombreItem] = 0;
             conteo[nombreItem] += 1;
         });
@@ -86,7 +101,7 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
             { name: 'Pendientes', value: conteo.pendiente, color: COLORES_ESTADOS.pendiente },
             { name: 'Aprobados', value: conteo.aprobado, color: COLORES_ESTADOS.aprobado },
             { name: 'Rechazados', value: conteo.rechazado, color: COLORES_ESTADOS.rechazado }
-        ].filter(item => item.value > 0); // Solo mostramos los que tienen al menos 1
+        ].filter(item => item.value > 0);
     }, [historial]);
 
     if (historial.length === 0) {
@@ -97,14 +112,12 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
         )
     }
 
-    // Formateador abreviado para las barras
     const formatAbreviado = (value: number) => {
         if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
         return `$${value}`;
     };
 
-    // Leyenda Personalizada para las tortas
     const CustomLegend = (props: any) => {
         const { payload } = props;
         return (
@@ -132,7 +145,6 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
 
     return (
         <div>
-            {/* TARJETAS KPI */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginBottom: '25px' }}>
                 <div className="panel kpi-card">
                     <h4 className="kpi-title">Total Cotizado</h4>
@@ -148,10 +160,8 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                 </div>
             </div>
 
-            {/* GRÁFICOS (Ahora en 3 columnas) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
 
-                {/* Gráfico 1: Evolución Mensual */}
                 <div className="panel" style={{ padding: '20px' }}>
                     <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>
                         Evolución de Cotizaciones
@@ -183,7 +193,6 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                     </div>
                 </div>
 
-                {/* Gráfico 2: Distribución por Categoría/Rubro */}
                 <div className="panel" style={{ padding: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '1rem' }}>Distribución</h3>
@@ -218,7 +227,6 @@ export const ReporteGestion = ({ historial, familias }: Props) => {
                     </div>
                 </div>
 
-                {/* Gráfico 3: Estado de los Presupuestos */}
                 <div className="panel" style={{ padding: '20px' }}>
                     <h3 style={{ marginTop: 0, textAlign: 'center', color: 'var(--text)', fontSize: '1rem' }}>
                         Estado de Presupuestos

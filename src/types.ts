@@ -1,5 +1,5 @@
 // ============================================================================
-// DEFINICIÓN DE TIPOS (TYPESCRIPT)
+// DEFINICIÓN DE TIPOS (TYPESCRIPT) - OBRAFÁCIL
 // Este archivo centraliza los tipos de datos para que TypeScript nos ayude
 // a evitar errores al manejar la información de la base de datos y la app.
 // ============================================================================
@@ -46,15 +46,35 @@ export type Perfil = {
     logo_url: string
 }
 
+// ============================================================================
+// NUEVOS TIPOS PARA EL MINI-CRM Y EL CARRITO
+// ============================================================================
+
+// Define la estructura de un Cliente en la base de datos (para el autocompletado)
+export type Cliente = {
+    id: string;
+    nombre: string;
+    telefono: string;
+    domicilio: string;
+}
+
+// Define la estructura de un ítem individual dentro del carrito de un presupuesto
+export type ItemCarrito = {
+    rubro: Rubro;
+    valores: Record<string, string>; // Las medidas y precios que cargó el usuario
+    resultados: Record<string, number>; // Lo que devolvió el motor de cálculo
+}
+
 // Define la estructura de un Presupuesto guardado en el historial
 export type PresupuestoGuardado = {
     id: string;
     creado_en: string;
     cliente_nombre: string;
     total: number;
+    // OJO: datos_entrada ahora contiene el array 'items' con todo el carrito
     datos_entrada: any;
     resultado_calculo: any;
     rubro_id: string;
-    // NUEVO CAMPO: Estado del presupuesto para el sistema de gestión (Kanban básico)
+    // Campo para el sistema de gestión (Kanban básico)
     estado: 'pendiente' | 'aprobado' | 'rechazado';
 }
