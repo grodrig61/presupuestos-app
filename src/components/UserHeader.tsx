@@ -9,7 +9,7 @@ interface Props {
     onLogout: () => void;
     mostrarBotonVolver?: boolean;
     onVolver?: () => void;
-    // NUEVAS PROPS PARA EL CARRITO GLOBAL
+    // PROPS PARA EL CARRITO GLOBAL
     itemsCount?: number;
     onVerCarrito?: () => void;
 }
@@ -40,19 +40,39 @@ export const UserHeader = ({
                     <button className="btn btn-secondary" onClick={onVolver}>← Volver</button>
                 )}
 
-                {/* BOTÓN DEL CARRITO: Solo aparece si hay ítems y si se pasa la función */}
+                {/* BOTÓN DEL CARRITO: Elegante, con ícono SVG y Badge */}
                 {itemsCount > 0 && onVerCarrito && (
                     <button
                         className="btn"
                         onClick={onVerCarrito}
                         style={{
-                            backgroundColor: '#0ea5e9', // Color celeste para destacar
+                            backgroundColor: 'var(--primary)',
                             color: 'white',
-                            fontWeight: 'bold',
-                            boxShadow: '0 2px 4px rgba(14, 165, 233, 0.3)'
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            gap: '8px',
+                            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
                         }}
                     >
-                        🛒 Ver Carrito ({itemsCount})
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="8" cy="21" r="1" />
+                            <circle cx="19" cy="21" r="1" />
+                            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                        </svg>
+                        Ver Carrito
+                        <span style={{
+                            backgroundColor: 'white',
+                            color: 'var(--primary)',
+                            borderRadius: '50%',
+                            padding: '2px 7px',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            {itemsCount}
+                        </span>
                     </button>
                 )}
 
