@@ -136,7 +136,6 @@ body {
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  /* Evita que elementos internos (como gráficos) rompan el panel */
 }
 
 /* Línea de color decorativa superior en cada panel */
@@ -592,4 +591,24 @@ body {
   .user-info h4 {
     max-width: 150px;
   }
+}
+
+/* ==========================================
+   NUEVOS ESTILOS PARA EL ESTADO DEL PRESUPUESTO
+   ========================================== */
+
+/* Selector de estado dentro de la tarjeta del historial */
+.select-estado {
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Efecto hover para el selector */
+.select-estado:hover {
+  filter: brightness(0.95);
 }

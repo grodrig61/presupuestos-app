@@ -1,4 +1,9 @@
-// src/lib/pdfGenerator.ts
+// ============================================================================
+// GENERADOR DE PDF
+// Este archivo se encarga de dibujar el presupuesto usando la librería pdf-lib,
+// calcular las fechas de vigencia y manejar el compartir nativo en celulares.
+// ============================================================================
+
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
 
@@ -10,40 +15,58 @@ export const descargarPDF = async (
     valoresData: any,
     rubroData: any,
     gastos: string,
-    onMostrarToast: () => void // Callback para mostrar el cartel verde
+    vigenciaDias: number, // Recibe los días de validez (ej: 15)
+    fechaCreacionOriginal: string, // Recibe la fecha para calcular el vencimiento correcto
+    onMostrarToast: () => void // Callback para mostrar el cartel verde en la PC
 ) => {
+    // Creamos un nuevo documento PDF en formato A4
     const pdfDoc = await PDFDocument.create()
     const page = pdfDoc.addPage([595, 842])
+
+    // Cargamos las fuentes estándar (Normal y Negrita)
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-    const { height, width } = page.getSize()
 
-    let y = height - 50
+    const { height, width } = page.getSize()
+    let y = height - 50 // Eje Y para dibujar desde arriba hacia abajo
     const marginLeft = 40
     const marginRight = width - 40
 
-    // Cargar Logo
+    // 1. CARGAR LOGO (Si el usuario tiene uno subido)
     if (perfilData.logo_url) {
         try {
             const response = await fetch(perfilData.logo_url)
             if (response.ok) {
                 const logoArrayBuffer = await response.arrayBuffer()
                 const logoImage = await pdfDoc.embedPng(logoArrayBuffer)
-                const logoDims = logoImage.scale(0.12)
+                const logoDims = logoImage.scale(0.12) // Achicamos el logo al 12%
                 page.drawImage(logoImage, { x: marginLeft, y: y - logoDims.height, width: logoDims.width, height: logoDims.height })
             }
         } catch (e) { console.log('Error cargando logo', e) }
     }
 
-    // Encabezado
+    // 2. ENCABEZADO (Título, Fecha y Vigencia)
     const titulo = 'PRESUPUESTO DE OBRA'
     const tituloWidth = fontBold.widthOfTextAtSize(titulo, 18)
     page.drawText(titulo, { x: marginRight - tituloWidth, y: y, size: 18, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
-    const fechaStr = new Date().toLocaleDateString('es-AR')
+    // Calculamos la fecha de vencimiento sumando los días de vigencia
+    const fechaBase = new Date(fechaCreacionOriginal);
+    const fechaStr = fechaBase.toLocaleDateString('es-AR')
+
+    const fechaVencimiento = new Date(fechaBase);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + vigenciaDias);
+    const fechaVencimientoStr = fechaVencimiento.toLocaleDateString('es-AR')
+
     const fechaWidth = font.widthOfTextAtSize(`Fecha: ${fechaStr}`, 9)
     page.drawText(`Fecha: ${fechaStr}`, { x: marginRight - fechaWidth, y: y - 15, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
 
+    // Imprimimos la vigencia en color rojo justo debajo de la fecha
+    const vigenciaText = `Válido hasta: ${fechaVencimientoStr}`
+    const vigenciaWidth = fontBold.widthOfTextAtSize(vigenciaText, 9)
+    page.drawText(vigenciaText, { x: marginRight - vigenciaWidth, y: y - 28, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+
+    // Datos del profesional
     page.drawText(perfilData.nombre, { x: marginLeft, y: y - 75, size: 14, font: fontBold })
     page.drawText(`CUIT: ${perfilData.cuit} | Tel: ${perfilData.telefono}`, { x: marginLeft, y: y - 90, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
     if (perfilData.matricula) page.drawText(`Matrícula: ${perfilData.matricula}`, { x: marginLeft, y: y - 102, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
@@ -52,17 +75,18 @@ export const descargarPDF = async (
     page.drawLine({ start: { x: marginLeft, y }, end: { x: marginRight, y }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
     y -= 25
 
-    // Datos del Cliente
+    // 3. DATOS DEL CLIENTE
     page.drawText('DATOS DEL CLIENTE', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 15
     page.drawText(`Nombre: ${clienteData.nombre}`, { x: marginLeft, y, size: 9, font })
     page.drawText(`Domicilio: ${clienteData.domicilio}`, { x: marginLeft, y: y - 12, size: 9, font })
     y -= 35
 
-    // Descripción
+    // 4. DESCRIPCIÓN DEL TRABAJO
     page.drawText('DESCRIPCIÓN DEL TRABAJO', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 15
 
+    // Función interna para hacer saltos de línea automáticos si el texto es muy largo
     const drawTextWrapped = (text: string, x: number, y: number, maxWidth: number) => {
         const words = text.split(' ')
         let line = ''
@@ -78,13 +102,15 @@ export const descargarPDF = async (
     y = drawTextWrapped(`Tareas: ${trabajoData.tareas}`, marginLeft, y, marginRight - marginLeft)
     y -= 20
 
-    // Tabla
+    // 5. TABLA DE MATERIALES Y MANO DE OBRA
     page.drawText('DETALLE DE MATERIALES Y MANO DE OBRA', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 25
 
+    // Definimos las coordenadas X de las columnas para alinear los textos
     const colX0 = marginLeft, colX1 = 300, colX2 = 380, colX3 = 480, colX4 = marginRight
     const tableTopY = y;
 
+    // Función para centrar los encabezados de la tabla
     const drawCenteredText = (text: string, xStart: number, xEnd: number, yPos: number) => {
         const textWidth = fontBold.widthOfTextAtSize(text, 9);
         const centerX = xStart + ((xEnd - xStart) / 2) - (textWidth / 2);
@@ -96,6 +122,7 @@ export const descargarPDF = async (
     drawCenteredText('P. UNIT.', colX2, colX3, tableTopY - 15);
     drawCenteredText('SUBTOTAL', colX3, colX4, tableTopY - 15);
 
+    // Dibujamos las líneas de la tabla
     page.drawLine({ start: { x: colX0, y: tableTopY }, end: { x: colX4, y: tableTopY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
     const headerBottomY = tableTopY - 25;
     page.drawLine({ start: { x: colX0, y: headerBottomY }, end: { x: colX4, y: headerBottomY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
@@ -104,6 +131,7 @@ export const descargarPDF = async (
     let totalMateriales = 0
     let lastRowY = y;
 
+    // Iteramos sobre los resultados calculados para dibujar cada fila
     Object.entries(resultadosData).forEach(([clave, cantidad]: any) => {
         const costoCercano = buscarPrecioCercano(clave, rubroData.costos)
         let precioUnitario = costoCercano ? Number(valoresData[costoCercano.clave] || 0) : 0
@@ -111,10 +139,13 @@ export const descargarPDF = async (
         totalMateriales += subtotal
 
         page.drawText(formatearNombreMaterial(clave), { x: colX0 + 5, y, size: 9, font })
+
         const cantText = formatNumber(cantidad)
         page.drawText(cantText, { x: colX2 - font.widthOfTextAtSize(cantText, 9) - 5, y, size: 9, font })
+
         const precioText = `$ ${formatNumber(precioUnitario)}`
         page.drawText(precioText, { x: colX3 - font.widthOfTextAtSize(precioText, 9) - 5, y, size: 9, font })
+
         const subText = `$ ${formatNumber(subtotal)}`
         page.drawText(subText, { x: colX4 - font.widthOfTextAtSize(subText, 9) - 5, y, size: 9, font, color: subtotal > 0 ? rgb(0.06, 0.72, 0.51) : rgb(0, 0, 0) })
 
@@ -124,6 +155,7 @@ export const descargarPDF = async (
         lastRowY = y;
     })
 
+    // Agregamos la fila de Gastos Generales si es mayor a 0
     const montoGastos = Number(gastos) || 0
     if (montoGastos > 0) {
         page.drawText('GASTOS GENERALES', { x: colX0 + 5, y, size: 9, font })
@@ -134,12 +166,14 @@ export const descargarPDF = async (
         lastRowY = y;
     }
 
+    // Dibujamos las líneas verticales de la tabla
     page.drawLine({ start: { x: colX0, y: tableTopY }, end: { x: colX0, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
     page.drawLine({ start: { x: colX1, y: tableTopY }, end: { x: colX1, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
     page.drawLine({ start: { x: colX2, y: tableTopY }, end: { x: colX2, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
     page.drawLine({ start: { x: colX3, y: tableTopY }, end: { x: colX3, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
     page.drawLine({ start: { x: colX4, y: tableTopY }, end: { x: colX4, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
+    // 6. TOTAL GENERAL
     const totalGeneral = totalMateriales + montoGastos
     y = lastRowY - 25
 
@@ -153,7 +187,7 @@ export const descargarPDF = async (
 
     page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', { x: marginLeft, y: 30, size: 7, font, color: rgb(0.5, 0.5, 0.5) })
 
-    // --- GENERACIÓN Y COMPARTIR ---
+    // 7. GENERACIÓN DEL ARCHIVO Y COMPARTIR
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
 
@@ -162,11 +196,10 @@ export const descargarPDF = async (
     const nombreCliente = clienteData.nombre ? clienteData.nombre.replace(/ /g, '_') : 'Cliente'
     const nombreArchivo = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
 
-    // Detectamos si es celular
+    // Detectamos si estamos en un celular para usar la API de compartir
     const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     if (esCelular) {
-        // MODO CELULAR: Intentar compartir nativamente
         try {
             const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -175,15 +208,14 @@ export const descargarPDF = async (
                     title: 'Presupuesto ObraFácil',
                     text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${perfilData.nombre}.`
                 });
-                return; // Si compartió con éxito, salimos y NO se descarga ni muestra cartel.
+                return; // Si se compartió con éxito, terminamos acá.
             }
         } catch (error) {
             console.log('El usuario canceló o falló el compartir en celular. Pasando a descarga directa...', error);
-            // Si el usuario cancela o hay un error, caemos al fallback de abajo.
         }
     }
 
-    // FALLBACK (PC o si falló el compartir en celular)
+    // FALLBACK: Si es PC o falló en celular, descargamos el archivo
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -193,6 +225,8 @@ export const descargarPDF = async (
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
 
-    // Mostramos el cartel verde avisando de la descarga (tanto en PC como en el fallback de celular)
-    onMostrarToast();
+    // Si estamos en PC, mostramos el cartel verde avisando de la descarga
+    if (!esCelular) {
+        onMostrarToast();
+    }
 }
