@@ -1,4 +1,4 @@
-// pdfGenerator.ts (Reemplaza todo tu archivo con este)
+// src/lib/pdfGenerator.ts (Reemplaza todo tu archivo con este)
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
@@ -37,7 +37,6 @@ export const descargarPDF = async (
                 const logoArrayBuffer = await response.arrayBuffer()
 
                 let logoImage;
-                // Intentamos cargar como PNG. Si falla, intentamos como JPG.
                 try {
                     logoImage = await pdfDoc.embedPng(logoArrayBuffer)
                 } catch (e) {
@@ -318,15 +317,35 @@ export const descargarPDF = async (
     const montoWidth = fontBold.widthOfTextAtSize(montoTotal, 16)
     page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
-    page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
-        x: marginLeft,
-        y: 30,
-        size: 7,
-        font,
-        color: rgb(0.5, 0.5, 0.5)
+    // ==========================================================================
+    // 8. PIE DE PÁGINA GLOBAL (Texto legal y Paginación)
+    // ==========================================================================
+    const pages = pdfDoc.getPages()
+    const totalPages = pages.length
+
+    pages.forEach((p, index) => {
+        // Texto legal (Izquierda)
+        p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
+            x: marginLeft,
+            y: 30,
+            size: 7,
+            font,
+            color: rgb(0.5, 0.5, 0.5)
+        })
+
+        // Paginación (Derecha) - NUEVO
+        const pageNumberText = `Página ${index + 1} de ${totalPages}`
+        const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
+        p.drawText(pageNumberText, {
+            x: marginRight - textWidth,
+            y: 30, // Misma altura que el texto legal
+            size: 8,
+            font: fontBold,
+            color: rgb(0.5, 0.5, 0.5)
+        })
     })
 
-    // 8. GENERACIÓN DEL ARCHIVO Y COMPARTIR
+    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
 
