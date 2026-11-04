@@ -9,7 +9,8 @@ export const descargarPDF = async (
     resultadosData: any,
     valoresData: any,
     rubroData: any,
-    gastos: string
+    gastos: string,
+    onMostrarToast: () => void // Callback para mostrar el cartel verde
 ) => {
     const pdfDoc = await PDFDocument.create()
     const page = pdfDoc.addPage([595, 842])
@@ -21,7 +22,7 @@ export const descargarPDF = async (
     const marginLeft = 40
     const marginRight = width - 40
 
-    // Cargar Logo (si existe)
+    // Cargar Logo
     if (perfilData.logo_url) {
         try {
             const response = await fetch(perfilData.logo_url)
@@ -58,7 +59,7 @@ export const descargarPDF = async (
     page.drawText(`Domicilio: ${clienteData.domicilio}`, { x: marginLeft, y: y - 12, size: 9, font })
     y -= 35
 
-    // Descripción del trabajo
+    // Descripción
     page.drawText('DESCRIPCIÓN DEL TRABAJO', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 15
 
@@ -77,7 +78,7 @@ export const descargarPDF = async (
     y = drawTextWrapped(`Tareas: ${trabajoData.tareas}`, marginLeft, y, marginRight - marginLeft)
     y -= 20
 
-    // Tabla de materiales
+    // Tabla
     page.drawText('DETALLE DE MATERIALES Y MANO DE OBRA', { x: marginLeft, y, size: 10, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     y -= 25
 
@@ -152,7 +153,7 @@ export const descargarPDF = async (
 
     page.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', { x: marginLeft, y: 30, size: 7, font, color: rgb(0.5, 0.5, 0.5) })
 
-    // --- GENERACIÓN DEL ARCHIVO Y COMPARTIR ---
+    // --- GENERACIÓN Y COMPARTIR ---
     const pdfBytes = await pdfDoc.save()
     const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
 
@@ -161,29 +162,37 @@ export const descargarPDF = async (
     const nombreCliente = clienteData.nombre ? clienteData.nombre.replace(/ /g, '_') : 'Cliente'
     const nombreArchivo = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
 
-    // Creamos el archivo para compartir
-    const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
+    // Detectamos si es celular
+    const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    // Intentamos usar la API Nativa de Compartir (Web Share API)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (esCelular) {
+        // MODO CELULAR: Intentar compartir nativamente
         try {
-            await navigator.share({
-                files: [file],
-                title: 'Presupuesto ObraFácil',
-                text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${perfilData.nombre}. Cualquier duda quedo a disposición.`
-            });
-            return; // Si se compartió con éxito, terminamos acá.
+            const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Presupuesto ObraFácil',
+                    text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${perfilData.nombre}.`
+                });
+                return; // Si compartió con éxito, salimos y NO se descarga ni muestra cartel.
+            }
         } catch (error) {
-            console.log('El usuario canceló o hubo un error al compartir:', error);
-            // Si cancela, no hacemos nada más. Si falla, cae al fallback.
+            console.log('El usuario canceló o falló el compartir en celular. Pasando a descarga directa...', error);
+            // Si el usuario cancela o hay un error, caemos al fallback de abajo.
         }
     }
 
-    // FALLBACK: Si el celular es viejo o está en PC, descargamos el PDF normalmente.
+    // FALLBACK (PC o si falló el compartir en celular)
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = nombreArchivo
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
     URL.revokeObjectURL(url)
+
+    // Mostramos el cartel verde avisando de la descarga (tanto en PC como en el fallback de celular)
+    onMostrarToast();
 }

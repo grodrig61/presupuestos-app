@@ -46,7 +46,6 @@ body {
   text-align: left;
 }
 
-/* Contenedor principal que envuelve toda la app */
 .app-wrapper {
   width: 100%;
   max-width: 1600px;
@@ -93,10 +92,9 @@ body {
 }
 
 @media (min-width: 600px) {
-
-  /* 2 columnas en tablets */
   .grid-rubros {
     grid-template-columns: repeat(2, 1fr);
+    /* 2 columnas en tablets */
   }
 }
 
@@ -111,18 +109,16 @@ body {
 }
 
 @media (min-width: 768px) {
-
-  /* 2 columnas en tablets */
   .dashboard-grid {
     grid-template-columns: repeat(2, 1fr);
+    /* 2 columnas en tablets */
   }
 }
 
 @media (min-width: 1200px) {
-
-  /* 4 columnas en PC */
   .dashboard-grid {
     grid-template-columns: repeat(4, 1fr);
+    /* 4 columnas en PC */
   }
 }
 
@@ -215,7 +211,6 @@ body {
   text-align: left;
 }
 
-/* Efecto al hacer foco en un input */
 .input-group input:focus,
 .input-group select:focus,
 .input-group textarea:focus {
@@ -308,7 +303,6 @@ body {
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
 }
 
-/* Flecha que aparece a la derecha de las tarjetas */
 .card-select::after {
   content: "→";
   color: var(--primary);
@@ -339,10 +333,8 @@ body {
 
 .resultado-item:last-child {
   border-bottom: none;
-  /* Quita la línea del último ítem */
 }
 
-/* Estado vacío (cuando no hay resultados) */
 .empty-state {
   display: flex;
   align-items: center;
@@ -354,7 +346,6 @@ body {
   font-style: italic;
 }
 
-/* Contenedor del botón de PDF */
 .pdf-action-container {
   margin-top: 20px;
   max-width: 400px;
@@ -363,8 +354,10 @@ body {
 }
 
 /* ==========================================
-   BANNER DE ERROR FLOTANTE (TOAST)
+   BANNERS FLOTANTES (TOASTS)
    ========================================== */
+
+/* Banner de Error (Rojo) */
 .error-banner {
   position: fixed;
   top: 20px;
@@ -398,6 +391,42 @@ body {
 
 .error-banner button:hover {
   color: #7f1d1d;
+}
+
+/* Banner de Éxito (Verde) */
+.success-banner {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #f0fdf4;
+  border-left: 4px solid #22c55e;
+  color: #15803d;
+  padding: 16px 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  animation: slideInRight 0.3s ease-out;
+  max-width: 400px;
+}
+
+.success-banner button {
+  background: none;
+  border: none;
+  color: #15803d;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 0 5px;
+}
+
+.success-banner button:hover {
+  color: #166534;
 }
 
 @keyframes slideInRight {
@@ -461,9 +490,8 @@ body {
   margin-bottom: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   flex-wrap: wrap;
-  /* Permite que los botones bajen a la siguiente línea si no entran */
+  /* Permite que los botones bajen si no entran */
   gap: 15px;
-  /* Espacio entre el perfil y los botones */
 }
 
 .user-info {
@@ -471,7 +499,6 @@ body {
   align-items: center;
   gap: 15px;
   flex: 1;
-  /* Ocupa el espacio disponible */
 }
 
 .user-logo {
@@ -487,7 +514,6 @@ body {
   color: var(--text);
   font-size: 1rem;
   white-space: nowrap;
-  /* Evita que el nombre se rompa en dos líneas */
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 200px;
@@ -499,35 +525,27 @@ body {
   font-size: 0.8rem;
 }
 
-/* Contenedor de los botones del header */
 .user-actions {
   display: flex;
   gap: 10px;
   align-items: center;
 }
 
-/* REGLAS RESPONSIVE PARA CELULARES (Arregla el problema de "Cerrar Sesión") */
+/* REGLAS RESPONSIVE PARA CELULARES (Arregla el botón de "Cerrar Sesión") */
 @media (max-width: 600px) {
   .user-actions {
     width: 100%;
-    /* Ocupa todo el ancho */
     justify-content: space-between;
-    /* Reparte los botones equitativamente */
   }
 
   .user-actions .btn {
     flex: 1;
-    /* Hace que todos los botones midan exactamente lo mismo */
     padding: 8px 4px;
-    /* Reduce el padding para que entre el texto */
     font-size: 0.75rem;
-    /* Achica un poquito la letra */
     white-space: nowrap;
-    /* Evita que el texto se corte feo */
   }
 
   .user-info h4 {
     max-width: 150px;
-    /* Reduce el espacio del nombre para que no empuje todo */
   }
 }

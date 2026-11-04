@@ -14,7 +14,6 @@ function App() {
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
-  // Estados para el formulario de perfil
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -34,7 +33,9 @@ function App() {
   const [resultados, setResultados] = useState<Record<string, number> | null>(null)
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
 
-  // --- ESTADOS DE NAVEGACIÓN Y HISTORIAL ---
+  // ESTADO PARA EL CARTEL VERDE DE ÉXITO
+  const [toastExito, setToastExito] = useState<string | null>(null)
+
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
@@ -46,6 +47,17 @@ function App() {
   const [filtroFechaDesde, setFiltroFechaDesde] = useState('')
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
+
+  // Detectamos si es celular para cambiar los textos de la UI
+  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Efecto para que el cartel verde desaparezca solo a los 4 segundos
+  useEffect(() => {
+    if (toastExito) {
+      const timer = setTimeout(() => setToastExito(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastExito])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,7 +77,6 @@ function App() {
     const { data } = await supabase.from('perfiles').select('*').eq('id', userId).single()
     if (data) {
       setPerfil(data)
-      // Llenamos los inputs por si el usuario va a "Editar Perfil"
       setNombre(data.nombre || ''); setCuit(data.cuit || ''); setTelefono(data.telefono || ''); setMatricula(data.matricula || '');
     }
     setAuthLoading(false)
@@ -93,7 +104,7 @@ function App() {
       const { data: { session: currentSession } } = await supabase.auth.getSession()
       if (!currentSession) throw new Error("No hay sesión activa.")
 
-      let logoUrl = perfil?.logo_url || '' // Mantenemos el logo viejo por defecto
+      let logoUrl = perfil?.logo_url || ''
       if (logoFile) {
         try {
           const fileExt = logoFile.name.split('.').pop()
@@ -220,7 +231,12 @@ function App() {
         resultado_calculo: { resultados, totalGeneral }, total: totalGeneral
       });
     }
-    await descargarPDF(perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales);
+
+    // Llamamos a la función y le pasamos el callback para el cartel verde
+    await descargarPDF(
+      perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
+      () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
+    );
   }
 
   const cargarHistorial = async () => {
@@ -237,7 +253,10 @@ function App() {
     const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
     const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
     if (rubroOriginal) {
-      await descargarPDF(perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales);
+      await descargarPDF(
+        perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
+        () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
+      );
     }
   }
 
@@ -333,6 +352,14 @@ function App() {
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
+        {/* CARTEL VERDE DE ÉXITO */}
+        {toastExito && (
+          <div className="success-banner">
+            <span>✅ {toastExito}</span>
+            <button onClick={() => setToastExito(null)}>✕</button>
+          </div>
+        )}
+
         <UserHeader
           perfil={perfil}
           onVerHistorial={() => { }}
@@ -394,7 +421,7 @@ function App() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-                    <button className="btn btn-primary" onClick={() => descargarPDFDelHistorial(p)} style={{ width: 'auto', padding: '8px 12px' }}>📄 Descargar</button>
+                    <button className="btn btn-primary" onClick={() => descargarPDFDelHistorial(p)} style={{ width: 'auto', padding: '8px 12px' }}>{esCelular ? '📲 Compartir' : '📄 Descargar'}</button>
                   </div>
                 </div>
               )
@@ -412,6 +439,15 @@ function App() {
         {errorValidacion && (
           <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>
         )}
+
+        {/* CARTEL VERDE DE ÉXITO */}
+        {toastExito && (
+          <div className="success-banner">
+            <span>✅ {toastExito}</span>
+            <button onClick={() => setToastExito(null)}>✕</button>
+          </div>
+        )}
+
         <UserHeader
           perfil={perfil}
           onVerHistorial={cargarHistorial}
@@ -470,9 +506,14 @@ function App() {
             ) : <div className="empty-state">Completá los datos y presioná "Calcular".</div>}
           </div>
         </div>
-        {resultados && <div className="pdf-action-container"><button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
-          📲 Generar y Compartir
-        </button></div>}
+        {resultados && (
+          <div className="pdf-action-container">
+            {/* TEXTO DINÁMICO SEGÚN EL DISPOSITIVO */}
+            <button className="btn btn-success" style={{ width: '100%' }} onClick={generarPDF}>
+              {esCelular ? '📲 Generar y Compartir' : '📄 Descargar PDF'}
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -480,6 +521,12 @@ function App() {
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
+        {toastExito && (
+          <div className="success-banner">
+            <span>✅ {toastExito}</span>
+            <button onClick={() => setToastExito(null)}>✕</button>
+          </div>
+        )}
         <UserHeader
           perfil={perfil}
           onVerHistorial={cargarHistorial}
@@ -503,6 +550,12 @@ function App() {
 
   return (
     <div className="app-wrapper">
+      {toastExito && (
+        <div className="success-banner">
+          <span>✅ {toastExito}</span>
+          <button onClick={() => setToastExito(null)}>✕</button>
+        </div>
+      )}
       <UserHeader
         perfil={perfil}
         onVerHistorial={cargarHistorial}
