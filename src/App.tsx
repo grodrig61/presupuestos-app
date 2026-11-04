@@ -61,20 +61,35 @@ function App() {
 
   // --- ESTADOS DEL HISTORIAL ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
+  // Usamos el guion bajo para ignorar la variable de lectura y evitar el error de TypeScript
   const [, setLoadingHistorial] = useState(false)
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
 
+  // --- ESTADO PARA EL POPOVER DEL FILTRO DE ESTADO ---
+  const [menuFiltroAbierto, setMenuFiltroAbierto] = useState(false)
 
   // ==========================================================================
   // 2. EFECTOS
   // ==========================================================================
+
+  // Efecto para ocultar el cartel de éxito (Toast)
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
       return () => clearTimeout(timer)
     }
   }, [toastExito])
+
+  // Cerrar menús al hacer clic afuera
+  useEffect(() => {
+    const cerrarMenus = () => {
+      setMenuFiltroAbierto(false)
+      setMostrarSugerencias(false)
+    }
+    document.addEventListener('click', cerrarMenus)
+    return () => document.removeEventListener('click', cerrarMenus)
+  }, [])
 
   // Verificación de sesión
   useEffect(() => {
@@ -322,7 +337,10 @@ function App() {
   const irAHistorial = async () => {
     if (!session) return
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
-    const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
+
+    // ORDEN ASCENDENTE (ascending: true)
+    const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: true });
+
     if (!error && data) setHistorial(data);
     setLoadingHistorial(false)
   }
@@ -428,7 +446,7 @@ function App() {
             <h3>1. Datos del Cliente</h3>
             <div className="input-group">
               <label>Nombre (escribí para buscar) *</label>
-              <input type="text" value={cliente.nombre} onChange={handleClienteChange} placeholder="Ej: Juan Pérez" autoComplete="off" />
+              <input type="text" value={cliente.nombre} onChange={handleClienteChange} onClick={(e) => e.stopPropagation()} placeholder="Ej: Juan Pérez" autoComplete="off" />
               {/* Lista de sugerencias */}
               {mostrarSugerencias && cliente.nombre.length > 1 && (
                 <ul className="sugerencias-clientes">
@@ -505,54 +523,83 @@ function App() {
           </button>
         </div>
 
-        {/* BARRA DE FILTROS SIMPLE */}
+        {/* BARRA DE FILTROS (CON POPOVER MODERNO) */}
         <div className="panel panel-filtros">
           <div style={{ display: 'flex', gap: '15px' }}>
-            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}><label>Buscar Cliente</label><input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} /></div>
+
+            {/* Filtro Buscar Cliente */}
+            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+              <label>Buscar Cliente</label>
+              <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
+            </div>
+
+            {/* Filtro de Estado (Popover) */}
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Estado</label>
-              <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
-                <option value="">Todos</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="aprobado">Aprobados</option>
-                <option value="rechazado">Rechazados</option>
-              </select>
+              <div className="contenedor-popover">
+                <button
+                  className="btn-filtro"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuFiltroAbierto(!menuFiltroAbierto);
+                  }}
+                >
+                  <span>
+                    {filtroEstado === 'pendiente' ? 'Pendientes' :
+                      filtroEstado === 'aprobado' ? 'Aprobados' :
+                        filtroEstado === 'rechazado' ? 'Rechazados' : 'Todos'}
+                  </span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                </button>
+
+                {menuFiltroAbierto && (
+                  <div className="menu-filtro">
+                    <button onClick={() => { setFiltroEstado(''); setMenuFiltroAbierto(false); }}>Todos</button>
+                    <button onClick={() => { setFiltroEstado('pendiente'); setMenuFiltroAbierto(false); }}>Pendientes</button>
+                    <button onClick={() => { setFiltroEstado('aprobado'); setMenuFiltroAbierto(false); }}>Aprobados</button>
+                    <button onClick={() => { setFiltroEstado('rechazado'); setMenuFiltroAbierto(false); }}>Rechazados</button>
+                  </div>
+                )}
+              </div>
             </div>
+
           </div>
         </div>
 
-        {/* TARJETAS */}
-        {historialFiltrado.map(p => {
-          const fechaCreacion = new Date(p.creado_en);
-          const hoy = new Date();
-          const diasDiferencia = Math.floor((hoy.getTime() - fechaCreacion.getTime()) / (1000 * 3600 * 24));
-          const esViejo = p.estado === 'pendiente' && diasDiferencia >= 15;
+        {/* TARJETAS EN GRILLA (2 POR FILA RESPONSIVE) */}
+        <div className="grid-rubros">
+          {historialFiltrado.map(p => {
+            const fechaCreacion = new Date(p.creado_en);
+            const hoy = new Date();
+            const diasDiferencia = Math.floor((hoy.getTime() - fechaCreacion.getTime()) / (1000 * 3600 * 24));
+            const esViejo = p.estado === 'pendiente' && diasDiferencia >= 15;
 
-          return (
-            <div key={p.id} className="panel" style={{ padding: '20px', marginBottom: '15px', borderTop: esViejo ? '4px solid #f97316' : undefined }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <strong style={{ fontSize: '1.1rem' }}>Cliente: {p.cliente_nombre}</strong>
-                <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-                <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="btn btn-secondary" onClick={() => editarPresupuesto(p)}>✏️ Editar</button>
-                  <select
-                    className={`btn-estado ${p.estado}`}
-                    value={p.estado}
-                    onChange={(e) => actualizarEstado(p.id, e.target.value)}
-                    style={{ padding: '6px', borderRadius: '6px', border: '1px solid #ccc' }}
-                  >
-                    <option value="pendiente">Pendiente</option>
-                    <option value="aprobado">Aprobado</option>
-                    <option value="rechazado">Rechazado</option>
-                  </select>
+            return (
+              <div key={p.id} className="panel" style={{ padding: '20px', borderTop: esViejo ? '4px solid #f97316' : undefined }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <strong style={{ fontSize: '1.1rem' }}>Cliente: {p.cliente_nombre}</strong>
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>{new Date(p.creado_en).toLocaleDateString('es-AR')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
+                  <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-secondary" onClick={() => editarPresupuesto(p)}>✏️ Editar</button>
+                    <select
+                      className={`btn-estado ${p.estado}`}
+                      value={p.estado}
+                      onChange={(e) => actualizarEstado(p.id, e.target.value)}
+                      style={{ padding: '6px', borderRadius: '6px', border: '1px solid #ccc' }}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="aprobado">Aprobado</option>
+                      <option value="rechazado">Rechazado</option>
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     )
   }
