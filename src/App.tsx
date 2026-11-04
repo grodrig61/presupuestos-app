@@ -417,7 +417,17 @@ function App() {
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
-        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaReporte(false)} />
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
+          onVerReporte={() => { }}
+          onLogout={handleLogout}
+          mostrarBotonVolver={true}
+          onVolver={() => setVistaReporte(false)}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+        />
         <div className="page-header"><div><h1>Resumen de Gestión</h1></div></div>
         <ReporteGestion historial={historial} familias={familias} />
       </div>
@@ -431,13 +441,30 @@ function App() {
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
-        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => { setVistaCarrito(false); setEdicionId(null); setItemsCarrito([]); }} />
+        {/* IMPORTANTE: El botón Volver acá NO vacía el carrito, solo cambia de vista */}
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => setVistaPerfil(true)}
+          onVerReporte={() => { }}
+          onLogout={handleLogout}
+          mostrarBotonVolver={true}
+          onVolver={() => { setVistaCarrito(false); }}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+        />
 
         <div className="page-header">
           <div>
             <h1>{edicionId ? 'Editando Presupuesto' : 'Armar Presupuesto de Obra'}</h1>
             <p>Revisá los ítems antes de generar el PDF.</p>
           </div>
+          {/* Botón para vaciar el carrito manualmente si el usuario quiere arrancar de cero */}
+          {itemsCarrito.length > 0 && (
+            <button className="btn btn-secondary" style={{ color: 'red', borderColor: 'red' }} onClick={() => { if (confirm('¿Seguro que querés vaciar el presupuesto?')) setItemsCarrito([]) }}>
+              🗑️ Vaciar Carrito
+            </button>
+          )}
         </div>
 
         <div className="dashboard-grid">
@@ -514,7 +541,17 @@ function App() {
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
-        <UserHeader perfil={perfil} onVerHistorial={() => { }} onVerPerfil={() => { setVistaPerfil(true); setVistaHistorial(false); }} onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); }} onLogout={handleLogout} mostrarBotonVolver={true} onVolver={() => setVistaHistorial(false)} />
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={() => { }}
+          onVerPerfil={() => { setVistaPerfil(true); setVistaHistorial(false); }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); }}
+          onLogout={handleLogout}
+          mostrarBotonVolver={true}
+          onVolver={() => setVistaHistorial(false)}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+        />
 
         <div className="page-header">
           <div><h1>Mis Presupuestos</h1></div>
@@ -611,7 +648,15 @@ function App() {
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
 
-        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => setVistaPerfil(true)}
+          onVerReporte={() => { }}
+          onLogout={handleLogout}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+        />
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => { setRubroSeleccionado(null); setResultados(null); setValores({}); }}>← Volver a rubros</button>
@@ -666,7 +711,15 @@ function App() {
   if (familiaSeleccionada) {
     return (
       <div className="app-wrapper">
-        <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => setVistaPerfil(true)}
+          onVerReporte={() => { }}
+          onLogout={handleLogout}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+        />
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ marginBottom: '10px' }} onClick={() => setFamiliaSeleccionada(null)}>← Volver a Categorías</button>
@@ -685,16 +738,15 @@ function App() {
   // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
-      <UserHeader perfil={perfil} onVerHistorial={irAHistorial} onVerPerfil={() => setVistaPerfil(true)} onVerReporte={() => { }} onLogout={handleLogout} />
-
-      {/* Si hay items en el carrito, mostramos un aviso flotante para ir a pagar */}
-      {itemsCarrito.length > 0 && (
-        <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 999 }}>
-          <button className="btn btn-primary" onClick={() => setVistaCarrito(true)} style={{ padding: '15px 25px', borderRadius: '30px', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
-            🛒 Ver Presupuesto ({itemsCarrito.length} ítems)
-          </button>
-        </div>
-      )}
+      <UserHeader
+        perfil={perfil}
+        onVerHistorial={irAHistorial}
+        onVerPerfil={() => setVistaPerfil(true)}
+        onVerReporte={() => { }}
+        onLogout={handleLogout}
+        itemsCount={itemsCarrito.length}
+        onVerCarrito={() => setVistaCarrito(true)}
+      />
 
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>
       <div className="grid-rubros">

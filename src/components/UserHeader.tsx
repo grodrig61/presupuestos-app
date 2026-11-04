@@ -5,13 +5,26 @@ interface Props {
     perfil: Perfil;
     onVerHistorial: () => void;
     onVerPerfil: () => void;
-    onVerReporte: () => void; // NUEVA PROP
+    onVerReporte: () => void;
     onLogout: () => void;
     mostrarBotonVolver?: boolean;
     onVolver?: () => void;
+    // NUEVAS PROPS PARA EL CARRITO GLOBAL
+    itemsCount?: number;
+    onVerCarrito?: () => void;
 }
 
-export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onVerReporte, onLogout, mostrarBotonVolver, onVolver }: Props) => {
+export const UserHeader = ({
+    perfil,
+    onVerHistorial,
+    onVerPerfil,
+    onVerReporte,
+    onLogout,
+    mostrarBotonVolver,
+    onVolver,
+    itemsCount = 0,
+    onVerCarrito
+}: Props) => {
     return (
         <div className="user-header">
             <div className="user-info">
@@ -26,6 +39,23 @@ export const UserHeader = ({ perfil, onVerHistorial, onVerPerfil, onVerReporte, 
                 {mostrarBotonVolver && (
                     <button className="btn btn-secondary" onClick={onVolver}>← Volver</button>
                 )}
+
+                {/* BOTÓN DEL CARRITO: Solo aparece si hay ítems y si se pasa la función */}
+                {itemsCount > 0 && onVerCarrito && (
+                    <button
+                        className="btn"
+                        onClick={onVerCarrito}
+                        style={{
+                            backgroundColor: '#0ea5e9', // Color celeste para destacar
+                            color: 'white',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(14, 165, 233, 0.3)'
+                        }}
+                    >
+                        🛒 Ver Carrito ({itemsCount})
+                    </button>
+                )}
+
                 <button className="btn btn-secondary" onClick={onVerReporte}>📊 Reporte</button>
                 <button className="btn btn-secondary" onClick={onVerPerfil}>👤 Mi Perfil</button>
                 <button className="btn btn-secondary" onClick={onVerHistorial}>📁 Presupuestos</button>
