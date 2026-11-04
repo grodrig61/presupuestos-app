@@ -71,10 +71,9 @@ export const descargarPDF = async (
                 const logoArrayBuffer = await response.arrayBuffer()
                 const logoImage = await pdfDoc.embedPng(logoArrayBuffer)
 
-                // --- CORRECCIÓN CRÍTICA DE TAMAÑO ---
-                // Limitamos el logo a un máximo de 65x65 puntos.
+                // Limitamos el logo a un máximo de 65x65 puntos para que no tape el texto.
                 const maxLogoSize = 65
-                const originalDims = logoImage.scale(1)
+                const originalDims = logoImage.scale(1) // Tamaño original
                 const scaleFactor = Math.min(
                     maxLogoSize / originalDims.width,
                     maxLogoSize / originalDims.height
@@ -139,14 +138,14 @@ export const descargarPDF = async (
     })
 
     // ==========================================================================
-    // 3. DATOS DEL PROFESIONAL (Subidos y compactados)
+    // 3. DATOS DEL PROFESIONAL (Subidos 10px para compactar el diseño)
     // ==========================================================================
 
-    // Nombre de la empresa. Lo subimos a y - 85.
+    // Nombre de la empresa. Lo subimos a y - 75 para acercarlo al logo.
     const nombreEmpresa = perfilData.nombre || 'Profesional Independiente'
     page.drawText(nombreEmpresa, {
         x: marginLeft,
-        y: y - 85,
+        y: y - 75,
         size: 14,
         font: fontBold
     })
@@ -154,7 +153,7 @@ export const descargarPDF = async (
     // CUIT y Teléfono
     page.drawText(`CUIT: ${perfilData.cuit || '-'} | Tel: ${perfilData.telefono || '-'}`, {
         x: marginLeft,
-        y: y - 100,
+        y: y - 90,
         size: 9,
         font: font,
         color: rgb(0.4, 0.4, 0.4)
@@ -164,15 +163,15 @@ export const descargarPDF = async (
     if (perfilData.matricula) {
         page.drawText(`Matrícula: ${perfilData.matricula}`, {
             x: marginLeft,
-            y: y - 112,
+            y: y - 102,
             size: 9,
             font: font,
             color: rgb(0.4, 0.4, 0.4)
         })
     }
 
-    // Línea divisoria horizontal
-    y -= 135
+    // Línea divisoria horizontal (subida a y - 120)
+    y -= 120
     page.drawLine({
         start: { x: marginLeft, y: y },
         end: { x: marginRight, y: y },
