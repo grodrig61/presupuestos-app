@@ -1,5 +1,7 @@
 // ============================================================================
 // COMPONENTE PRINCIPAL DE LA APLICACIÓN (App.tsx)
+// Este archivo maneja el estado global, la navegación, la autenticación
+// y la lógica de negocio de ObraFácil.
 // ============================================================================
 
 import { useEffect, useState, useMemo } from 'react'
@@ -15,11 +17,14 @@ function App() {
   // ==========================================================================
   // 1. ESTADOS GLOBALES DE LA APLICACIÓN
   // ==========================================================================
+
+  // --- Autenticación ---
   const [session, setSession] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [mensajeAuth, setMensajeAuth] = useState('')
 
+  // --- Perfil del Profesional ---
   const [perfil, setPerfil] = useState<Perfil | null>(null)
   const [nombre, setNombre] = useState('')
   const [cuit, setCuit] = useState('')
@@ -28,11 +33,16 @@ function App() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
+  // --- Datos y Navegación ---
   const [familias, setFamilias] = useState<Familia[]>([])
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState<Familia | null>(null)
   const [rubroSeleccionado, setRubroSeleccionado] = useState<Rubro | null>(null)
   const [loadingData, setLoadingData] = useState(true)
+  const [vistaHistorial, setVistaHistorial] = useState(false)
+  const [vistaPerfil, setVistaPerfil] = useState(false)
+  const [vistaReporte, setVistaReporte] = useState(false)
 
+  // --- Formulario del Presupuesto ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [valores, setValores] = useState<Record<string, string>>({})
@@ -42,16 +52,9 @@ function App() {
   const [errorValidacion, setErrorValidacion] = useState<string | null>(null)
   const [toastExito, setToastExito] = useState<string | null>(null)
 
-  const [vistaHistorial, setVistaHistorial] = useState(false)
-  const [vistaPerfil, setVistaPerfil] = useState(false)
-  const [vistaReporte, setVistaReporte] = useState(false)
-
+  // --- Historial y Filtros ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
-
-  // Estado para controlar qué menú de estado está abierto en el historial
-  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
-
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroRubro, setFiltroRubro] = useState('')
@@ -60,8 +63,13 @@ function App() {
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('')
   const [ordenHistorial, setOrdenHistorial] = useState('fecha-desc')
 
-  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // --- Estado para el menú desplegable del estado (Popover) ---
+  const [menuEstadoAbierto, setMenuEstadoAbierto] = useState<string | null>(null)
 
+  // Detecta si está en celular para adaptar botones
+  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+  // Efecto para ocultar el cartel verde de éxito a los 4 segundos
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -69,13 +77,14 @@ function App() {
     }
   }, [toastExito])
 
-  // Cerrar el menú de estado si el usuario hace clic fuera de él
+  // Efecto para cerrar el menú de estado si el usuario hace clic afuera
   useEffect(() => {
     const cerrarMenus = () => setMenuEstadoAbierto(null)
     document.addEventListener('click', cerrarMenus)
     return () => document.removeEventListener('click', cerrarMenus)
   }, [])
 
+  // Verificación inicial de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -98,7 +107,10 @@ function App() {
     const { data } = await supabase.from('perfiles').select('*').eq('id', userId).single()
     if (data) {
       setPerfil(data)
-      setNombre(data.nombre || ''); setCuit(data.cuit || ''); setTelefono(data.telefono || ''); setMatricula(data.matricula || '');
+      setNombre(data.nombre || '')
+      setCuit(data.cuit || '')
+      setTelefono(data.telefono || '')
+      setMatricula(data.matricula || '')
     }
     setAuthLoading(false)
     cargarFamilias()
@@ -114,8 +126,15 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null);
-    setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setEmail(''); setMensajeAuth('')
+    setPerfil(null)
+    setSession(null)
+    setRubroSeleccionado(null)
+    setFamiliaSeleccionada(null)
+    setVistaHistorial(false)
+    setVistaPerfil(false)
+    setVistaReporte(false)
+    setEmail('')
+    setMensajeAuth('')
   }
 
   const guardarPerfil = async (e: React.FormEvent) => {
@@ -133,14 +152,19 @@ function App() {
           const fileName = `${currentSession.user.id}-${Date.now()}.${fileExt}`
           const { error: uploadError } = await supabase.storage.from('logos').upload(fileName, logoFile)
           if (!uploadError) {
-            const { data } = await supabase.storage.from('logos').getPublicUrl(fileName)
+            const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
             logoUrl = data.publicUrl
           }
-        } catch (imgError) { console.warn("Error Storage:", imgError); }
+        } catch (imgError) { console.warn("Error Storage:", imgError) }
       }
 
       const { error: dbError } = await supabase.from('perfiles').upsert({
-        id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl
+        id: currentSession.user.id,
+        nombre,
+        cuit,
+        telefono,
+        matricula,
+        logo_url: logoUrl
       })
       if (dbError) throw dbError
 
@@ -149,7 +173,9 @@ function App() {
       setLogoFile(null)
     } catch (error: any) {
       setErrorValidacion("Error al guardar: " + error.message)
-    } finally { setGuardandoPerfil(false) }
+    } finally {
+      setGuardandoPerfil(false)
+    }
   }
 
   // ==========================================================================
@@ -163,61 +189,98 @@ function App() {
   }
 
   const handleSeleccionarRubro = async (rubro: Rubro) => {
-    setRubroSeleccionado(rubro); setResultados(null); setGastosGenerales(''); setErrorValidacion(null); setValores({});
+    setRubroSeleccionado(rubro)
+    setResultados(null)
+    setGastosGenerales('')
+    setErrorValidacion(null)
+    setValores({})
     setVigenciaDias('15')
     if (!session) return;
 
-    const { data, error } = await supabase.from('precios_usuario').select('clave_atributo, valor').eq('usuario_id', session.user.id).eq('rubro_id', rubro.id);
+    const { data, error } = await supabase
+      .from('precios_usuario')
+      .select('clave_atributo, valor')
+      .eq('usuario_id', session.user.id)
+      .eq('rubro_id', rubro.id)
+
     if (!error && data) {
-      const preciosGuardados: Record<string, string> = {};
-      data.forEach(item => { preciosGuardados[item.clave_atributo] = item.valor.toString(); });
-      setValores(prev => ({ ...prev, ...preciosGuardados }));
+      const preciosGuardados: Record<string, string> = {}
+      data.forEach(item => {
+        preciosGuardados[item.clave_atributo] = item.valor.toString()
+      })
+      setValores(prev => ({ ...prev, ...preciosGuardados }))
     }
   }
 
-  const handleInputChange = (clave: string, valor: string) => { setValores(prev => ({ ...prev, [clave]: valor })) }
+  const handleInputChange = (clave: string, valor: string) => {
+    setValores(prev => ({ ...prev, [clave]: valor }))
+  }
 
   const validarMedidas = (): boolean => {
-    if (!rubroSeleccionado) return false;
-    setErrorValidacion(null);
+    if (!rubroSeleccionado) return false
+    setErrorValidacion(null)
+
     for (const atributo of rubroSeleccionado.atributos) {
       if (atributo.requerido && (!valores[atributo.clave] || valores[atributo.clave].trim() === '')) {
-        const nombreAtributo = atributo.etiqueta.replace(/cano/gi, 'caño').replace(/tees/gi, 'uniones en T');
-        setErrorValidacion(`El campo "${nombreAtributo}" es obligatorio.`);
-        return false;
+        const nombreAtributo = atributo.etiqueta.replace(/cano/gi, 'caño').replace(/tees/gi, 'uniones en T')
+        setErrorValidacion(`El campo "${nombreAtributo}" es obligatorio.`)
+        return false
       }
     }
-    return true;
+    return true
   }
 
   const validarParaPDF = (): boolean => {
-    if (!validarMedidas() || !rubroSeleccionado) return false;
-    if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return false; }
-    if (!trabajo.descripcion.trim()) { setErrorValidacion("Falta la descripción del trabajo."); return false; }
-    let totalMateriales = 0;
+    if (!validarMedidas() || !rubroSeleccionado) return false
+    if (!cliente.nombre.trim()) {
+      setErrorValidacion("Falta el nombre del cliente.")
+      return false
+    }
+    if (!trabajo.descripcion.trim()) {
+      setErrorValidacion("Falta la descripción del trabajo.")
+      return false
+    }
+
+    let totalMateriales = 0
     if (resultados) {
       Object.entries(resultados).forEach(([clave, cantidad]) => {
-        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos);
-        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0;
-        totalMateriales += cantidad * precio;
-      });
+        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos)
+        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0
+        totalMateriales += cantidad * precio
+      })
     }
-    const montoGastos = Number(gastosGenerales) || 0;
-    if (totalMateriales + montoGastos <= 0) { setErrorValidacion("El total es $0,00."); return false; }
-    return true;
+    const montoGastos = Number(gastosGenerales) || 0
+    if (totalMateriales + montoGastos <= 0) {
+      setErrorValidacion("El total es $0,00.")
+      return false
+    }
+    return true
   }
 
   const calcularPresupuesto = async () => {
-    if (!validarMedidas() || !rubroSeleccionado) return;
+    if (!validarMedidas() || !rubroSeleccionado) return
 
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
-          const numValor = Number(valores[costo.clave]);
-          return { usuario_id: session.user.id, rubro_id: rubroSeleccionado.id, clave_atributo: costo.clave, valor: isNaN(numValor) ? 0 : numValor, unidad: costo.unidad };
-        }).filter(p => p.valor > 0);
-        if (preciosAGuardar.length > 0) await supabase.from('precios_usuario').upsert(preciosAGuardar, { onConflict: 'usuario_id, rubro_id, clave_atributo' });
-      } catch (err) { console.error("No se guardaron precios", err); }
+          const numValor = Number(valores[costo.clave])
+          return {
+            usuario_id: session.user.id,
+            rubro_id: rubroSeleccionado.id,
+            clave_atributo: costo.clave,
+            valor: isNaN(numValor) ? 0 : numValor,
+            unidad: costo.unidad
+          }
+        }).filter(p => p.valor > 0)
+
+        if (preciosAGuardar.length > 0) {
+          await supabase.from('precios_usuario').upsert(preciosAGuardar, {
+            onConflict: 'usuario_id, rubro_id, clave_atributo'
+          })
+        }
+      } catch (err) {
+        console.error("No se guardaron precios", err)
+      }
     }
 
     const nuevoContexto: Record<string, any> = {}
@@ -235,9 +298,12 @@ function App() {
         const resultadoFinal = typeof resultado === 'number' ? Number(resultado.toFixed(2)) : resultado
         resultadosCalculados[claveResultado] = resultadoFinal
         nuevoContexto[claveResultado] = resultadoFinal
-      } catch (error) { console.error(error) }
+      } catch (error) {
+        console.error(error)
+      }
     })
-    setResultados(resultadosCalculados); setErrorValidacion(null);
+    setResultados(resultadosCalculados)
+    setErrorValidacion(null)
   }
 
   // ==========================================================================
@@ -246,36 +312,51 @@ function App() {
 
   const generarPDF = async () => {
     if (!resultados || !rubroSeleccionado || !perfil) return
-    if (!validarParaPDF()) return;
+    if (!validarParaPDF()) return
 
-    const numVigencia = Number(vigenciaDias) || 15;
+    const numVigencia = Number(vigenciaDias) || 15
 
     if (session) {
-      let totalMateriales = 0;
+      let totalMateriales = 0
       Object.entries(resultados).forEach(([clave, cantidad]) => {
-        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos);
-        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0;
-        totalMateriales += cantidad * precio;
-      });
-      const totalGeneral = totalMateriales + (Number(gastosGenerales) || 0);
-      const familiaActual = familias.find(f => f.rubros.some(r => r.id === rubroSeleccionado.id));
+        const costoCercano = buscarPrecioCercano(clave, rubroSeleccionado.costos)
+        let precio = costoCercano ? Number(valores[costoCercano.clave] || 0) : 0
+        totalMateriales += cantidad * precio
+      })
+      const totalGeneral = totalMateriales + (Number(gastosGenerales) || 0)
+      const familiaActual = familias.find(f => f.rubros.some(r => r.id === rubroSeleccionado.id))
 
       await supabase.from('presupuestos').insert({
         usuario_id: session.user.id,
         rubro_id: rubroSeleccionado.id,
         cliente_nombre: cliente.nombre,
-        datos_entrada: { cliente, trabajo, valores, gastosGenerales, vigenciaDias: numVigencia, rubroNombre: rubroSeleccionado.nombre, familiaNombre: familiaActual?.nombre || 'Sin Categoría' },
+        datos_entrada: {
+          cliente,
+          trabajo,
+          valores,
+          gastosGenerales,
+          vigenciaDias: numVigencia,
+          rubroNombre: rubroSeleccionado.nombre,
+          familiaNombre: familiaActual?.nombre || 'Sin Categoría'
+        },
         resultado_calculo: { resultados, totalGeneral },
         total: totalGeneral,
         estado: 'pendiente'
-      });
+      })
     }
 
     await descargarPDF(
-      perfil, cliente, trabajo, resultados, valores, rubroSeleccionado, gastosGenerales,
-      numVigencia, new Date().toISOString(),
+      perfil,
+      cliente,
+      trabajo,
+      resultados,
+      valores,
+      rubroSeleccionado,
+      gastosGenerales,
+      numVigencia,
+      new Date().toISOString(),
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
-    );
+    )
   }
 
   // ==========================================================================
@@ -283,66 +364,88 @@ function App() {
   // ==========================================================================
 
   const irAHistorial = async () => {
-    if (!session) return;
-    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false);
-    const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
-    if (!error && data) setHistorial(data);
-    setLoadingHistorial(false);
+    if (!session) return
+    setLoadingHistorial(true)
+    setVistaHistorial(true)
+    setVistaPerfil(false)
+    setVistaReporte(false)
+
+    const { data, error } = await supabase
+      .from('presupuestos')
+      .select('*')
+      .eq('usuario_id', session.user.id)
+      .order('creado_en', { ascending: false })
+
+    if (!error && data) setHistorial(data)
+    setLoadingHistorial(false)
   }
 
   const irAReporte = async () => {
-    if (!session) return;
-    setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false);
+    if (!session) return
+    setVistaReporte(true)
+    setVistaHistorial(false)
+    setVistaPerfil(false)
 
     if (historial.length === 0) {
-      setLoadingData(true);
-      const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
-      if (!error && data) setHistorial(data);
-      setLoadingData(false);
+      setLoadingData(true)
+      const { data, error } = await supabase
+        .from('presupuestos')
+        .select('*')
+        .eq('usuario_id', session.user.id)
+        .order('creado_en', { ascending: false })
+      if (!error && data) setHistorial(data)
+      setLoadingData(false)
     }
   }
 
   const descargarPDFDelHistorial = async (presupuesto: PresupuestoGuardado) => {
-    if (!perfil) return;
-    const { datos_entrada, resultado_calculo, rubro_id, creado_en } = presupuesto;
-    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
-    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
+    if (!perfil) return
+    const { datos_entrada, resultado_calculo, rubro_id, creado_en } = presupuesto
+    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id))
+    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id)
 
     if (rubroOriginal) {
-      const vigencia = datos_entrada.vigenciaDias || 15;
+      const vigencia = datos_entrada.vigenciaDias || 15
       await descargarPDF(
-        perfil, datos_entrada.cliente, datos_entrada.trabajo, resultado_calculo.resultados, datos_entrada.valores, rubroOriginal, datos_entrada.gastosGenerales,
-        vigencia, creado_en,
+        perfil,
+        datos_entrada.cliente,
+        datos_entrada.trabajo,
+        resultado_calculo.resultados,
+        datos_entrada.valores,
+        rubroOriginal,
+        datos_entrada.gastosGenerales,
+        vigencia,
+        creado_en,
         () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
-      );
+      )
     }
   }
 
   const duplicarPresupuesto = (presupuesto: PresupuestoGuardado) => {
-    const { datos_entrada, resultado_calculo, rubro_id } = presupuesto;
-    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id));
-    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id);
+    const { datos_entrada, resultado_calculo, rubro_id } = presupuesto
+    const familia = familias.find(f => f.rubros.some(r => r.id === rubro_id))
+    const rubroOriginal = familia?.rubros.find(r => r.id === rubro_id)
 
     if (rubroOriginal) {
-      setRubroSeleccionado(rubroOriginal);
-      setCliente(datos_entrada.cliente);
-      setTrabajo(datos_entrada.trabajo);
-      setValores(datos_entrada.valores);
-      setGastosGenerales(datos_entrada.gastosGenerales || '');
-      setVigenciaDias(datos_entrada.vigenciaDias ? datos_entrada.vigenciaDias.toString() : '15');
-      setResultados(resultado_calculo.resultados);
+      setRubroSeleccionado(rubroOriginal)
+      setCliente(datos_entrada.cliente)
+      setTrabajo(datos_entrada.trabajo)
+      setValores(datos_entrada.valores)
+      setGastosGenerales(datos_entrada.gastosGenerales || '')
+      setVigenciaDias(datos_entrada.vigenciaDias ? datos_entrada.vigenciaDias.toString() : '15')
+      setResultados(resultado_calculo.resultados)
 
-      setVistaHistorial(false);
-      setVistaReporte(false);
-      setErrorValidacion(null);
-      setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.");
+      setVistaHistorial(false)
+      setVistaReporte(false)
+      setErrorValidacion(null)
+      setToastExito("Datos cargados. Modificá lo necesario y generá el nuevo PDF.")
     }
   }
 
   const actualizarEstado = async (id: string, nuevoEstado: string) => {
-    setMenuEstadoAbierto(null); // Cerramos el menú al instante
-    setHistorial(prev => prev.map(p => p.id === id ? { ...p, estado: nuevoEstado as any } : p));
-    await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
+    setMenuEstadoAbierto(null)
+    setHistorial(prev => prev.map(p => p.id === id ? { ...p, estado: nuevoEstado as any } : p))
+    await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id)
   }
 
   // ==========================================================================
@@ -350,33 +453,61 @@ function App() {
   // ==========================================================================
 
   const historialFiltrado = useMemo(() => {
-    let filtrado = [...historial];
-    if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
-    if (filtroCategoria) filtrado = filtrado.filter(p => (p.datos_entrada.familiaNombre || familias.find(f => f.rubros.some(r => r.id === p.rubro_id))?.nombre) === filtroCategoria);
-    if (filtroRubro) filtrado = filtrado.filter(p => p.datos_entrada.rubroNombre === filtroRubro);
-    if (filtroEstado) filtrado = filtrado.filter(p => p.estado === filtroEstado);
-    if (filtroFechaDesde) filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() >= new Date(filtroFechaDesde + 'T00:00:00').getTime());
-    if (filtroFechaHasta) filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() <= new Date(filtroFechaHasta + 'T23:59:59').getTime());
+    let filtrado = [...historial]
+
+    if (filtroCliente) {
+      filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()))
+    }
+
+    if (filtroCategoria) {
+      filtrado = filtrado.filter(p => (p.datos_entrada.familiaNombre || familias.find(f => f.rubros.some(r => r.id === p.rubro_id))?.nombre) === filtroCategoria)
+    }
+
+    if (filtroRubro) {
+      filtrado = filtrado.filter(p => p.datos_entrada.rubroNombre === filtroRubro)
+    }
+
+    if (filtroEstado) {
+      filtrado = filtrado.filter(p => p.estado === filtroEstado)
+    }
+
+    if (filtroFechaDesde) {
+      filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() >= new Date(filtroFechaDesde + 'T00:00:00').getTime())
+    }
+
+    if (filtroFechaHasta) {
+      filtrado = filtrado.filter(p => new Date(p.creado_en).getTime() <= new Date(filtroFechaHasta + 'T23:59:59').getTime())
+    }
 
     filtrado.sort((a, b) => {
       switch (ordenHistorial) {
-        case 'fecha-asc': return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime();
-        case 'cliente-asc': return a.cliente_nombre.localeCompare(b.cliente_nombre);
-        case 'cliente-desc': return b.cliente_nombre.localeCompare(a.cliente_nombre);
-        default: return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime();
+        case 'fecha-asc':
+          return new Date(a.creado_en).getTime() - new Date(b.creado_en).getTime()
+        case 'cliente-asc':
+          return a.cliente_nombre.localeCompare(b.cliente_nombre)
+        case 'cliente-desc':
+          return b.cliente_nombre.localeCompare(a.cliente_nombre)
+        default:
+          return new Date(b.creado_en).getTime() - new Date(a.creado_en).getTime()
       }
-    });
-    return filtrado;
-  }, [historial, filtroCliente, filtroCategoria, filtroRubro, filtroEstado, filtroFechaDesde, filtroFechaHasta, ordenHistorial, familias]);
+    })
+    return filtrado
+  }, [historial, filtroCliente, filtroCategoria, filtroRubro, filtroEstado, filtroFechaDesde, filtroFechaHasta, ordenHistorial, familias])
 
   const rubrosDisponibles = useMemo(() => {
-    if (!filtroCategoria) return [];
-    const familia = familias.find(f => f.nombre === filtroCategoria);
-    return familia ? familia.rubros.map(r => r.nombre) : [];
-  }, [filtroCategoria, familias]);
+    if (!filtroCategoria) return []
+    const familia = familias.find(f => f.nombre === filtroCategoria)
+    return familia ? familia.rubros.map(r => r.nombre) : []
+  }, [filtroCategoria, familias])
 
   const limpiarFiltros = () => {
-    setFiltroCliente(''); setFiltroCategoria(''); setFiltroRubro(''); setFiltroEstado(''); setFiltroFechaDesde(''); setFiltroFechaHasta(''); setOrdenHistorial('fecha-desc');
+    setFiltroCliente('')
+    setFiltroCategoria('')
+    setFiltroRubro('')
+    setFiltroEstado('')
+    setFiltroFechaDesde('')
+    setFiltroFechaHasta('')
+    setOrdenHistorial('fecha-desc')
   }
 
   // ==========================================================================
@@ -385,6 +516,7 @@ function App() {
 
   if (authLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando sistema...</div>
 
+  // PANTALLA 1: LOGIN
   if (!session) {
     return (
       <div className="auth-container">
@@ -404,6 +536,7 @@ function App() {
     )
   }
 
+  // PANTALLA 2: PERFIL
   if (!perfil || vistaPerfil) {
     return (
       <div className="auth-container">
@@ -441,6 +574,7 @@ function App() {
 
   if (loadingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos...</div>
 
+  // PANTALLA 3: REPORTE
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
@@ -460,6 +594,7 @@ function App() {
     )
   }
 
+  // PANTALLA 4: HISTORIAL
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -545,18 +680,16 @@ function App() {
                     <span style={{ fontSize: '0.9rem', color: 'var(--text-light)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Desc: {descripcion}</span>
                   </div>
 
-                  {/* Footer: Monto, Botón de Estado Personalizado y Botón de Descarga */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', gap: '10px', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
 
                     <div className="acciones-tarjeta">
 
-                      {/* POPOVER DE ESTADO PERSONALIZADO */}
                       <div className="contenedor-popover">
                         <button
                           className={`btn-estado ${p.estado || 'pendiente'}`}
                           onClick={(e) => {
-                            e.stopPropagation(); // Evita que el clic cierre el menú inmediatamente
+                            e.stopPropagation();
                             setMenuEstadoAbierto(menuEstadoAbierto === p.id ? null : p.id);
                           }}
                         >
@@ -580,12 +713,10 @@ function App() {
                         )}
                       </div>
 
-                      {/* BOTÓN DE DUPLICAR */}
                       <button className="btn-icono" onClick={() => duplicarPresupuesto(p)} title="Duplicar Presupuesto">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
                       </button>
 
-                      {/* BOTÓN DE DESCARGA MEJORADO */}
                       <button className="btn-descarga" onClick={() => descargarPDFDelHistorial(p)}>
                         {esCelular ? (
                           <>
@@ -610,7 +741,7 @@ function App() {
     )
   }
 
-  // --- PANTALLA 5: FORMULARIO DE CÁLCULO ---
+  // PANTALLA 5: FORMULARIO
   if (rubroSeleccionado) {
     return (
       <div className="app-wrapper">
@@ -735,6 +866,7 @@ function App() {
     )
   }
 
+  // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
       {toastExito && (
