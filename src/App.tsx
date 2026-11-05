@@ -71,7 +71,7 @@ function App() {
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
-  const [descuento, setDescuento] = useState<string>('0') // <--- ESTADO AGREGADO
+  const [descuento, setDescuento] = useState<string>('0') // <--- ESTADO DE DESCUENTO
   const [vigenciaDias, setVigenciaDias] = useState<string>('15')
 
   // --- ESTADOS DEL BUSCADOR DE CLIENTES ---
@@ -316,7 +316,7 @@ function App() {
     if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return; }
 
     const numVigencia = Number(vigenciaDias) || 15;
-    const numDescuento = Number(descuento) || 0; // <--- VARIABLE AGREGADA
+    const numDescuento = Number(descuento) || 0; // <--- VARIABLE CALCULADA
 
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
@@ -946,7 +946,7 @@ function App() {
               </div>
             )}
 
-            {/* AGREGAMOS EL INPUT DE DESCUENTO ACÁ */}
+            {/* Inputs de Gastos y Descuento */}
             <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
               <div className="input-group" style={{ flex: 1 }}>
                 <label>Gastos Generales / Imprevistos</label>
@@ -999,7 +999,20 @@ function App() {
               </svg>
               Exportar a Excel
             </button>
-            <button className="btn btn-primary" onClick={() => { setItemsCarrito([]); setEdicionId(null); setVistaCarrito(true); }} style={{ width: 'auto' }}>
+            {/* BOTÓN CORREGIDO: Ahora vuelve al Home en lugar del carrito vacío */}
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setItemsCarrito([]);
+                setEdicionId(null);
+                setCliente({ nombre: '', domicilio: '', telefono: '' });
+                setTrabajo({ descripcion: '', tareas: '' });
+                setGastosGenerales('');
+                setDescuento('0');
+                setVistaHistorial(false);
+              }}
+              style={{ width: 'auto' }}
+            >
               + Nuevo Presupuesto
             </button>
           </div>
