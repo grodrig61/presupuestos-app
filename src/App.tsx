@@ -241,9 +241,10 @@ function App() {
     }
   }
 
-  // MODIFICADO: Si cambia un valor, borramos los resultados anteriores
+  // Sanitiza el input para que no acepte números negativos
   const handleInputChange = (clave: string, valor: string) => {
-    setValores(prev => ({ ...prev, [clave]: valor }))
+    const valorSanitizado = valor.replace(/-/g, ''); // Elimina el signo menos
+    setValores(prev => ({ ...prev, [clave]: valorSanitizado }))
     setResultados(null)
   }
 
@@ -283,8 +284,10 @@ function App() {
         const fn = new Function(...Object.keys(nuevoContexto), `return ${formulaSegura}`)
         const resultado = fn(...Object.values(nuevoContexto))
         const resultadoFinal = typeof resultado === 'number' ? Number(resultado.toFixed(2)) : resultado
-        resultadosCalculados[claveResultado] = resultadoFinal
-        nuevoContexto[claveResultado] = resultadoFinal
+
+        // Aseguramos que ninguna fórmula devuelva un número negativo
+        resultadosCalculados[claveResultado] = Math.max(0, resultadoFinal)
+        nuevoContexto[claveResultado] = Math.max(0, resultadoFinal)
       } catch (error) { console.error(error) }
     })
     setResultados(resultadosCalculados); setErrorValidacion(null);
@@ -324,8 +327,9 @@ function App() {
     if (!perfil || itemsCarrito.length === 0) return;
     if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return; }
 
-    const numVigencia = Number(vigenciaDias) || 15;
-    const numDescuento = Number(descuento) || 0;
+    const numVigencia = Math.max(0, Number(vigenciaDias)) || 15;
+    const numDescuento = Math.max(0, Number(descuento)) || 0;
+    const numGastos = Math.max(0, Number(gastosGenerales)) || 0;
 
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
@@ -334,7 +338,7 @@ function App() {
         totalGeneral += (Number(item.valores[costo?.clave || ''] || 0) * cantidad);
       });
     });
-    totalGeneral += Number(gastosGenerales) || 0;
+    totalGeneral += numGastos;
 
     if (numDescuento > 0) {
       totalGeneral -= totalGeneral * (numDescuento / 100);
@@ -345,7 +349,7 @@ function App() {
         usuario_id: session.user.id,
         rubro_id: itemsCarrito[0].rubro.id,
         cliente_nombre: cliente.nombre,
-        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, descuento: numDescuento, vigenciaDias: numVigencia },
+        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales: numGastos.toString(), descuento: numDescuento, vigenciaDias: numVigencia },
         resultado_calculo: { totalGeneral },
         total: totalGeneral,
         estado: 'pendiente'
@@ -370,7 +374,7 @@ function App() {
       cliente,
       trabajo,
       itemsCarrito,
-      gastosGenerales,
+      numGastos.toString(),
       numDescuento,
       numVigencia,
       new Date().toISOString(),
@@ -907,6 +911,7 @@ function App() {
           )}
         </div>
 
+        {/* GRILLA CORREGIDA: 4 columnas (1 Cliente + 2 Resultados + 1 Ajustes) */}
         <div className="dashboard-grid">
           <div className="panel panel-cliente" style={{ position: 'relative' }}>
             <h3>1. Datos del Cliente</h3>
@@ -929,7 +934,7 @@ function App() {
             <div className="input-group"><label>Domicilio</label><input type="text" value={cliente.domicilio} onChange={e => setCliente({ ...cliente, domicilio: e.target.value })} /></div>
 
             <div className="input-group"><label>Descripción General</label><textarea rows={2} value={trabajo.descripcion} onChange={e => setTrabajo({ ...trabajo, descripcion: e.target.value })} placeholder="Ej: Refacción integral de baño..." /></div>
-            <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} /></div>
+            <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value.replace(/-/g, ''))} min="1" /></div>
           </div>
 
           <div className="panel panel-resultados" style={{ gridColumn: 'span 2' }}>
@@ -973,18 +978,6 @@ function App() {
               </div>
             )}
 
-            {/* Inputs de Gastos y Descuento */}
-            <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
-              <div className="input-group" style={{ flex: 1 }}>
-                <label>Gastos Generales / Imprevistos</label>
-                <input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value)} placeholder="$ 0.00" />
-              </div>
-              <div className="input-group" style={{ flex: 1 }}>
-                <label>Descuento (%)</label>
-                <input type="number" value={descuento} onChange={e => setDescuento(e.target.value)} placeholder="0" min="0" max="100" />
-              </div>
-            </div>
-
             {/* RESUMEN VISUAL EN TIEMPO REAL */}
             {itemsCarrito.length > 0 && (
               <div style={{ marginTop: '20px', borderTop: '2px solid var(--border)', paddingTop: '15px' }}>
@@ -1008,6 +1001,32 @@ function App() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* NUEVO PANEL DE AJUSTES (Columna 4) */}
+          <div className="panel panel-precios" style={{ gridColumn: 'span 1' }}>
+            <h3>3. Ajustes Finales</h3>
+            <div className="input-group">
+              <label>Gastos Generales / Imprevistos</label>
+              <input
+                type="number"
+                value={gastosGenerales}
+                onChange={e => setGastosGenerales(e.target.value.replace(/-/g, ''))}
+                placeholder="$ 0.00"
+                min="0"
+              />
+            </div>
+            <div className="input-group">
+              <label>Descuento (%)</label>
+              <input
+                type="number"
+                value={descuento}
+                onChange={e => setDescuento(e.target.value.replace(/-/g, ''))}
+                placeholder="0"
+                min="0"
+                max="100"
+              />
+            </div>
           </div>
         </div>
 
@@ -1184,7 +1203,12 @@ function App() {
               <div key={atributo.clave} className="input-group">
                 <label>{atributo.etiqueta} {atributo.requerido && '*'}</label>
                 {atributo.tipo === 'numero' ? (
-                  <input type="number" value={valores[atributo.clave] || ''} onChange={e => handleInputChange(atributo.clave, e.target.value)} />
+                  <input
+                    type="number"
+                    value={valores[atributo.clave] || ''}
+                    onChange={e => handleInputChange(atributo.clave, e.target.value)}
+                    min="0"
+                  />
                 ) : (
                   <select value={valores[atributo.clave] || ''} onChange={e => handleInputChange(atributo.clave, e.target.value)}>
                     <option value="">Seleccioná...</option>
@@ -1200,7 +1224,13 @@ function App() {
             {rubroSeleccionado.costos.map(costo => (
               <div key={costo.clave} className="input-group">
                 <label>{costo.etiqueta}</label>
-                <input type="number" value={valores[costo.clave] || ''} onChange={e => handleInputChange(costo.clave, e.target.value)} placeholder="$ 0.00" />
+                <input
+                  type="number"
+                  value={valores[costo.clave] || ''}
+                  onChange={e => handleInputChange(costo.clave, e.target.value)}
+                  placeholder="$ 0.00"
+                  min="0"
+                />
               </div>
             ))}
           </div>
