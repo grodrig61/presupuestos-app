@@ -241,7 +241,11 @@ function App() {
     }
   }
 
-  const handleInputChange = (clave: string, valor: string) => { setValores(prev => ({ ...prev, [clave]: valor })) }
+  // MODIFICADO: Si cambia un valor, borramos los resultados anteriores
+  const handleInputChange = (clave: string, valor: string) => {
+    setValores(prev => ({ ...prev, [clave]: valor }))
+    setResultados(null)
+  }
 
   const validarMedidas = (): boolean => {
     if (!rubroSeleccionado) return false;
@@ -1235,12 +1239,13 @@ function App() {
           </div>
         )}
 
+        {/* BOTONES CONDICIONALES CORREGIDOS */}
         <div className="pdf-action-container" style={{ maxWidth: '100%', display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '30px' }}>
-          <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ width: 'auto', padding: '12px 30px' }}>
-            Calcular Materiales
-          </button>
-
-          {resultados && (
+          {!resultados ? (
+            <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ width: 'auto', padding: '12px 30px' }}>
+              Calcular Materiales
+            </button>
+          ) : (
             <button className="btn btn-success" onClick={agregarAlCarrito} style={{ width: 'auto', padding: '12px 30px', backgroundColor: '#0ea5e9' }}>
               + Agregar al Presupuesto
             </button>
