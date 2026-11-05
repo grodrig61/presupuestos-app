@@ -423,7 +423,7 @@ export const descargarPDF = async (
 
         // Centramos el texto en la fila
         const textY = currentY - 13;
-        // CAMBIO APLICADO: Se quitó fontBold, ahora usa font normal
+        // Se usa font normal para que no esté en negrita
         page.drawText('GASTOS GENERALES', { x: colX0 + 5, y: textY, size: 9, font: font })
 
         const ggSubText = `$ ${formatNumber(montoGastos)}`
@@ -559,7 +559,7 @@ export const descargarPDF = async (
     })
 
     // ==========================================================================
-    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR
+    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR (Lógica del mensaje de WhatsApp)
     // ==========================================================================
 
     const pdfBytes = await pdfDoc.save()
@@ -576,11 +576,37 @@ export const descargarPDF = async (
     if (esCelular) {
         try {
             const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
+
+                // --- NUEVA LÓGICA PARA EL MENSAJE DE WHATSAPP ---
+
+                // 1. Extraemos los nombres de los rubros
+                const nombresRubros = itemsData.map((item: any) => item.rubro.nombre);
+                let textoRubros = '';
+
+                // 2. Formateamos la lista de rubros (Ej: "A, B y C")
+                if (nombresRubros.length === 1) {
+                    textoRubros = nombresRubros[0];
+                } else if (nombresRubros.length === 2) {
+                    textoRubros = `${nombresRubros[0]} y ${nombresRubros[1]}`;
+                } else if (nombresRubros.length > 2) {
+                    // Sacamos el último, unimos el resto con comas, y agregamos el último con "y"
+                    const ultimoRubro = nombresRubros.pop();
+                    textoRubros = `${nombresRubros.join(', ')} y ${ultimoRubro}`;
+                }
+
+                // 3. Formateamos el total calculado previamente
+                const totalFormateado = formatNumber(totalGeneral);
+
+                // 4. Armamos el texto final con tratamiento formal y sin nombre del cliente
+                const mensajeCompartir = `Cumplo en enviarle el presupuesto de ${textoRubros} por un total de $ ${totalFormateado}. Quedo a su disposición para cualquier consulta, muchas gracias!`;
+
+                // 5. Ejecutamos el menú de compartir
                 await navigator.share({
                     files: [file],
                     title: 'Presupuesto ObraFácil',
-                    text: `Hola ${clienteData.nombre || ''}, te envío el presupuesto de ${nombreEmpresa}.`
+                    text: mensajeCompartir
                 })
                 return // Si se compartió con éxito, terminamos acá.
             }
