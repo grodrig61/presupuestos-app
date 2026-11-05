@@ -119,6 +119,9 @@ function App() {
     setAuthLoading(false)
     cargarFamilias()
     cargarClientes(userId)
+    supabase.from('presupuestos').select('*').eq('usuario_id', userId).order('creado_en', { ascending: false }).then(({ data }) => {
+      if (data) setHistorial(data);
+    });
   }
 
   // Carga la libreta de clientes para el autocompletado
@@ -422,7 +425,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={irAHistorial}
           onVerPerfil={() => { setVistaPerfil(true); setVistaReporte(false); }}
-          onVerReporte={() => { }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
           onLogout={handleLogout}
           mostrarBotonVolver={true}
           onVolver={() => setVistaReporte(false)}
@@ -470,7 +473,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={irAHistorial}
           onVerPerfil={() => setVistaPerfil(true)}
-          onVerReporte={() => { }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
           onLogout={handleLogout}
           mostrarBotonVolver={true}
           onVolver={() => { setVistaCarrito(false); }}
@@ -676,7 +679,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={irAHistorial}
           onVerPerfil={() => setVistaPerfil(true)}
-          onVerReporte={() => { }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
           onLogout={handleLogout}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
@@ -739,7 +742,7 @@ function App() {
           perfil={perfil}
           onVerHistorial={irAHistorial}
           onVerPerfil={() => setVistaPerfil(true)}
-          onVerReporte={() => { }}
+          onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
           onLogout={handleLogout}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
@@ -766,7 +769,7 @@ function App() {
         perfil={perfil}
         onVerHistorial={irAHistorial}
         onVerPerfil={() => setVistaPerfil(true)}
-        onVerReporte={() => { }}
+        onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
         onLogout={handleLogout}
         itemsCount={itemsCarrito.length}
         onVerCarrito={() => setVistaCarrito(true)}
