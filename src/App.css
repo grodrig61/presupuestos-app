@@ -347,8 +347,8 @@ body {
 }
 
 .kpi-value {
-  /* Tamaño grande para los números */
-  font-size: 1.8rem;
+  /* Bajamos un poco el tamaño base para que quepa mejor */
+  font-size: 1.6rem;
 
   /* Grosor de la fuente */
   font-weight: 700;
@@ -356,18 +356,21 @@ body {
   /* Espacio superior */
   margin-top: 10px;
 
-  /* Evita que números muy grandes rompan el diseño */
-  word-break: break-word;
-
   /* Altura de línea */
   line-height: 1.2;
+
+  /* Evita que los números se corten feo en dos líneas si son muy largos */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Ajuste de fuente para celulares muy pequeños */
 @media (max-width: 400px) {
   .kpi-value {
     /* Reduce el tamaño en pantallas chicas */
-    font-size: 1.4rem;
+    font-size: 1.2rem;
   }
 }
 
