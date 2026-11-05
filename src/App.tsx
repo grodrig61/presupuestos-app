@@ -4,6 +4,9 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import * as XLSX from 'xlsx'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from 'recharts'
 import { supabase } from './lib/supabaseClient'
 import { descargarPDF } from './lib/pdfGenerator'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './lib/utils'
@@ -51,7 +54,8 @@ function App() {
     tasa_conversion: 0,
     usuarios_activos: 0,
     top_rubros: [] as string[],
-    bottom_rubros: [] as string[]
+    bottom_rubros: [] as string[],
+    growth_data: [] as any[]
   })
 
   // --- ESTADOS DEL CARRITO ---
@@ -665,7 +669,7 @@ function App() {
           </div>
         </div>
 
-        {/* Grilla de 9 Tarjetas KPI (Se adapta automáticamente) */}
+        {/* Grilla de 9 Tarjetas KPI */}
         <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
 
           {/* 1. Usuarios */}
@@ -713,7 +717,7 @@ function App() {
             <div className="kpi-value" style={{ color: '#f59e0b', fontSize: getFontSize(`$${formatNumber(adminStats.ticket_promedio)}`) }}>${formatNumber(adminStats.ticket_promedio)}</div>
           </div>
 
-          {/* 6. Tasa de Conversión (2 decimales) */}
+          {/* 6. Tasa de Conversión */}
           <div className="panel kpi-card">
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: '#10b981' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
@@ -724,7 +728,7 @@ function App() {
             </div>
           </div>
 
-          {/* 7. Usuarios Activos (30 días) */}
+          {/* 7. Usuarios Activos */}
           <div className="panel kpi-card">
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: '#0ea5e9' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
@@ -733,7 +737,7 @@ function App() {
             <div className="kpi-value" style={{ color: '#0ea5e9', fontSize: getFontSize(adminStats.usuarios_activos) }}>{adminStats.usuarios_activos}</div>
           </div>
 
-          {/* 8. Rubro Más Popular (Con empates) */}
+          {/* 8. Rubro Más Popular */}
           <div className="panel kpi-card">
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: '#ec4899' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
@@ -742,7 +746,7 @@ function App() {
             <div className="kpi-value" style={{ color: '#ec4899', fontSize: getFontSize(topRubroNombre), textAlign: 'center' }}>{topRubroNombre}</div>
           </div>
 
-          {/* 9. Rubro Menos Popular (Con empates) */}
+          {/* 9. Rubro Menos Popular */}
           <div className="panel kpi-card">
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', color: '#64748b' }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
@@ -752,6 +756,40 @@ function App() {
           </div>
 
         </div>
+
+        {/* GRÁFICO DE CRECIMIENTO (Últimos 6 meses) */}
+        <div className="panel" style={{ marginTop: '20px', padding: '20px' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--text)', fontSize: '1.1rem', textAlign: 'center' }}>
+            Crecimiento de la Plataforma (Últimos 6 meses)
+          </h3>
+          <div style={{ width: '100%', height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={adminStats.growth_data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorUsuarios" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorPresupuestos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="mes" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
+                  labelStyle={{ fontWeight: 'bold', color: '#0f172a' }}
+                />
+                <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.9rem' }} />
+                <Area type="monotone" dataKey="usuarios" name="Nuevos Usuarios" stroke="#2563eb" fillOpacity={1} fill="url(#colorUsuarios)" />
+                <Area type="monotone" dataKey="presupuestos" name="Presupuestos Creados" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorPresupuestos)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
       </div>
     )
   }
