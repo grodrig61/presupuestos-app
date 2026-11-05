@@ -370,7 +370,7 @@ export const descargarPDF = async (
 
     const montoGastos = Number(gastos) || 0
     if (montoGastos > 0) {
-        page.drawText('GASTOS GENERALES / IMPREVISTOS', { x: colX0 + 5, y, size: 9, font: fontBold })
+        page.drawText('GASTOS GENERALES', { x: colX0 + 5, y, size: 9, font: fontBold })
         const ggSubText = `$ ${formatNumber(montoGastos)}`
         page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y, size: 9, font: fontBold, color: rgb(0.06, 0.72, 0.51) })
         y -= 15

@@ -43,7 +43,8 @@ export type Perfil = {
     cuit: string;
     telefono: string;
     matricula: string;
-    logo_url: string
+    logo_url: string;
+    acepto_terminos?: boolean;
 }
 
 // ============================================================================

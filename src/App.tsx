@@ -170,6 +170,17 @@ function App() {
     } finally { setGuardandoPerfil(false) }
   }
 
+  const aceptarTerminos = async () => {
+    if (!session) return;
+    const { error } = await supabase.from('perfiles').update({ acepto_terminos: true }).eq('id', session.user.id);
+    if (!error) {
+      // Actualizamos el estado local para que la pantalla desaparezca
+      setPerfil(prev => prev ? { ...prev, acepto_terminos: true } : null);
+    }
+  }
+
+
+
   // ==========================================================================
   // 4. FUNCIONES DE LA APP Y CÁLCULOS
   // ==========================================================================
@@ -411,6 +422,29 @@ function App() {
               {perfil && <button type="button" className="btn btn-secondary" onClick={() => setVistaPerfil(false)}>Cancelar</button>}
             </div>
           </form>
+        </div>
+      </div>
+    )
+  }
+
+  // PANTALLA DE TÉRMINOS Y CONDICIONES (Ley 25.326)
+  if (perfil && perfil.acepto_terminos === false) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card" style={{ maxWidth: '600px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+          <h2>Términos y Privacidad</h2>
+          <p style={{ marginBottom: '15px' }}>Para continuar, necesitás aceptar nuestras políticas.</p>
+
+          <div style={{ flex: 1, overflowY: 'auto', textAlign: 'left', fontSize: '0.85rem', color: 'var(--text-light)', marginBottom: '20px', paddingRight: '10px', lineHeight: '1.6' }}>
+            <p style={{ marginBottom: '10px' }}><strong>1. Protección de Datos Personales (Ley 25.326):</strong> Al utilizar Presupuestos Pro, usted acepta que los datos personales de sus clientes (nombres, teléfonos, domicilios) serán almacenados en nuestra base de datos con el único fin de generar y gestionar presupuestos de obra.</p>
+            <p style={{ marginBottom: '10px' }}><strong>2. Responsabilidad del Usuario:</strong> Usted declara ser el único responsable de contar con el consentimiento de sus clientes para ingresar sus datos en esta plataforma.</p>
+            <p style={{ marginBottom: '10px' }}><strong>3. Privacidad y Seguridad:</strong> Sus datos y los de sus clientes no son compartidos ni vendidos a terceros. La información está resguardada bajo estrictos protocolos de seguridad.</p>
+            <p><strong>4. Uso de la Información:</strong> Los datos ingresados son de uso exclusivo para la generación de los documentos PDF que usted descargue.</p>
+          </div>
+
+          <button className="btn btn-primary" onClick={aceptarTerminos} style={{ width: '100%', padding: '12px', fontSize: '1rem' }}>
+            Acepto los Términos y Condiciones
+          </button>
         </div>
       </div>
     )
