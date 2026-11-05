@@ -71,6 +71,7 @@ function App() {
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
+  const [descuento, setDescuento] = useState<string>('0') // <--- ESTADO AGREGADO
   const [vigenciaDias, setVigenciaDias] = useState<string>('15')
 
   // --- ESTADOS DEL BUSCADOR DE CLIENTES ---
@@ -315,6 +316,7 @@ function App() {
     if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return; }
 
     const numVigencia = Number(vigenciaDias) || 15;
+    const numDescuento = Number(descuento) || 0; // <--- VARIABLE AGREGADA
 
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
@@ -325,12 +327,17 @@ function App() {
     });
     totalGeneral += Number(gastosGenerales) || 0;
 
+    // Aplicamos el descuento al total que se va a guardar en la base de datos
+    if (numDescuento > 0) {
+      totalGeneral -= totalGeneral * (numDescuento / 100);
+    }
+
     if (session) {
       const datosInsert = {
         usuario_id: session.user.id,
         rubro_id: itemsCarrito[0].rubro.id,
         cliente_nombre: cliente.nombre,
-        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, vigenciaDias: numVigencia },
+        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, descuento: numDescuento, vigenciaDias: numVigencia }, // <--- GUARDAMOS DESCUENTO
         resultado_calculo: { totalGeneral },
         total: totalGeneral,
         estado: 'pendiente'
@@ -351,12 +358,19 @@ function App() {
     }
 
     await descargarPDF(
-      perfil, cliente, trabajo, itemsCarrito, gastosGenerales, numVigencia, new Date().toISOString(),
+      perfil,
+      cliente,
+      trabajo,
+      itemsCarrito,
+      gastosGenerales,
+      numDescuento, // <--- PASAMOS EL DESCUENTO AL PDF
+      numVigencia,
+      new Date().toISOString(),
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
-    setGastosGenerales(''); setVistaCarrito(false); setVistaHistorial(false);
+    setGastosGenerales(''); setDescuento('0'); setVistaCarrito(false); setVistaHistorial(false); // <--- RESETEAMOS DESCUENTO
   }
 
   // ==========================================================================
@@ -375,6 +389,7 @@ function App() {
     setCliente(p.datos_entrada.cliente);
     setTrabajo(p.datos_entrada.trabajo);
     setGastosGenerales(p.datos_entrada.gastosGenerales || '');
+    setDescuento(p.datos_entrada.descuento ? p.datos_entrada.descuento.toString() : '0'); // <--- CARGAMOS DESCUENTO
     setVigenciaDias(p.datos_entrada.vigenciaDias ? p.datos_entrada.vigenciaDias.toString() : '15');
     setItemsCarrito(p.datos_entrada.items || []);
     setVistaHistorial(false);
@@ -396,28 +411,42 @@ function App() {
   const exportarExcel = () => {
     if (historialFiltrado.length === 0) return;
 
-    // --- HOJA 1: RESUMEN (Un registro por presupuesto) ---
+    // --- HOJA 1: RESUMEN ---
     const resumenData = historialFiltrado.map(p => {
       const gastos = Number(p.datos_entrada?.gastosGenerales) || 0;
+      const descPorcentaje = Number(p.datos_entrada?.descuento) || 0;
+      const totalFinal = p.total;
+
+      // Calculamos el total bruto (antes del descuento) de forma matemática inversa
+      let totalBruto = totalFinal;
+      let montoDescuento = 0;
+
+      if (descPorcentaje > 0) {
+        totalBruto = totalFinal / (1 - (descPorcentaje / 100));
+        montoDescuento = totalBruto - totalFinal;
+      }
+
+      const materiales = totalBruto - gastos;
+
       return {
         'ID': p.id.split('-')[0].toUpperCase(),
         'Fecha': new Date(p.creado_en).toLocaleDateString('es-AR'),
         'Cliente': p.cliente_nombre,
         'Teléfono': p.datos_entrada?.cliente?.telefono || '',
         'Domicilio': p.datos_entrada?.cliente?.domicilio || '',
-        'Materiales': p.total - gastos, // El total menos los gastos generales
+        'Materiales': materiales,
         'Gastos Grales.': gastos,
-        'Total': p.total,
+        'Descuento (%)': descPorcentaje,
+        'Descuento ($)': montoDescuento,
+        'Total Final': totalFinal,
         'Estado': p.estado.charAt(0).toUpperCase() + p.estado.slice(1)
       };
     });
 
-    // --- HOJA 2: DETALLE (Un registro por cada material de cada rubro) ---
+    // --- HOJA 2: DETALLE ---
     const detalleData: any[] = [];
     historialFiltrado.forEach(p => {
-      // Recorremos los ítems del carrito de este presupuesto
       p.datos_entrada?.items?.forEach((item: any) => {
-        // Recorremos los resultados calculados de este rubro
         Object.entries(item.resultados).forEach(([clave, cantidad]: any) => {
           const costo = buscarPrecioCercano(clave, item.rubro.costos);
           const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
@@ -426,7 +455,7 @@ function App() {
           detalleData.push({
             'ID Presupuesto': p.id.split('-')[0].toUpperCase(),
             'Cliente': p.cliente_nombre,
-            'Rubro': item.rubro.nombre, // Acá se ve a qué rubro pertenece (Plomería, Pintura, etc)
+            'Rubro': item.rubro.nombre,
             'Material': formatearNombreMaterial(clave),
             'Cantidad': Number(cantidad),
             'Precio Unitario': precioUnitario,
@@ -436,31 +465,30 @@ function App() {
       });
     });
 
-    // --- CREACIÓN DE LAS HOJAS ---
     const wsResumen = XLSX.utils.json_to_sheet(resumenData);
     const wsDetalle = XLSX.utils.json_to_sheet(detalleData);
 
-    // --- APLICAR FORMATOS (Moneda y Numérico) ---
-
-    // Formato para Resumen (Columnas F, G, H son Materiales, Gastos y Total)
+    // Formatos Hoja Resumen
     for (let i = 2; i <= resumenData.length + 1; i++) {
-      ['F', 'G', 'H'].forEach(col => {
+      // F=Materiales, G=Gastos, I=Descuento($), J=Total Final
+      ['F', 'G', 'I', 'J'].forEach(col => {
         if (wsResumen[`${col}${i}`]) wsResumen[`${col}${i}`].z = '"$"#,##0.00';
       });
+      // H=Descuento(%)
+      if (wsResumen[`H${i}`]) wsResumen[`H${i}`].z = '0.00"%"';
     }
 
-    // Formato para Detalle (Columna E: Cantidad con 2 decimales, F y G: Moneda)
+    // Formatos Hoja Detalle
     for (let i = 2; i <= detalleData.length + 1; i++) {
-      if (wsDetalle[`E${i}`]) wsDetalle[`E${i}`].z = '0.00';
-      if (wsDetalle[`F${i}`]) wsDetalle[`F${i}`].z = '"$"#,##0.00';
-      if (wsDetalle[`G${i}`]) wsDetalle[`G${i}`].z = '"$"#,##0.00';
+      if (wsDetalle[`E${i}`]) wsDetalle[`E${i}`].z = '0.00'; // Cantidad
+      if (wsDetalle[`F${i}`]) wsDetalle[`F${i}`].z = '"$"#,##0.00'; // P.Unitario
+      if (wsDetalle[`G${i}`]) wsDetalle[`G${i}`].z = '"$"#,##0.00'; // Subtotal
     }
 
-    // Ajustar el ancho de las columnas para que se vea prolijo al abrir el Excel
-    wsResumen['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
+    // Ancho de columnas (Agregamos una columna más para el Descuento en $)
+    wsResumen['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
     wsDetalle['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 35 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
 
-    // --- GENERAR EL ARCHIVO ---
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, wsResumen, "Resumen");
     XLSX.utils.book_append_sheet(libro, wsDetalle, "Detalle de Ítems");
@@ -918,9 +946,16 @@ function App() {
               </div>
             )}
 
-            <div className="input-group" style={{ marginTop: '20px' }}>
-              <label>Gastos Generales / Imprevistos</label>
-              <input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value)} placeholder="$ 0.00" />
+            {/* AGREGAMOS EL INPUT DE DESCUENTO ACÁ */}
+            <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label>Gastos Generales / Imprevistos</label>
+                <input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value)} placeholder="$ 0.00" />
+              </div>
+              <div className="input-group" style={{ flex: 1 }}>
+                <label>Descuento (%)</label>
+                <input type="number" value={descuento} onChange={e => setDescuento(e.target.value)} placeholder="0" min="0" max="100" />
+              </div>
             </div>
           </div>
         </div>

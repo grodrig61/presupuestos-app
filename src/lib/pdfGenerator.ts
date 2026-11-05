@@ -25,13 +25,16 @@ export const descargarPDF = async (
     // 5. Gastos generales
     gastos: string,
 
-    // 6. Días de validez
+    // 6. Descuento a aplicar (%)
+    descuentoPorcentaje: number,
+
+    // 7. Días de validez
     vigenciaDias: number,
 
-    // 7. Fecha de creación (para calcular el vencimiento)
+    // 8. Fecha de creación (para calcular el vencimiento)
     fechaCreacionOriginal: string,
 
-    // 8. Función para mostrar el cartel verde de descarga
+    // 9. Función para mostrar el cartel verde de descarga
     onMostrarToast: () => void
 ) => {
 
@@ -358,11 +361,11 @@ export const descargarPDF = async (
     }
 
     // ==========================================================================
-    // 7. GASTOS GENERALES Y TOTAL FINAL
+    // 7. GASTOS GENERALES, DESCUENTO Y TOTAL FINAL
     // ==========================================================================
 
     // Si no hay espacio, nueva página
-    if (y < 100) {
+    if (y < 120) { // Aumentamos el margen por si hay descuento
         const nuevaPagina = agregarPagina()
         page = nuevaPagina.page
         y = nuevaPagina.y
@@ -377,9 +380,25 @@ export const descargarPDF = async (
     }
 
     totalGeneral += montoGastos
+
+    // Lógica de Descuento
+    let montoDescuento = 0;
+    if (descuentoPorcentaje > 0) {
+        montoDescuento = totalGeneral * (descuentoPorcentaje / 100);
+        totalGeneral -= montoDescuento;
+    }
+
     y -= 10
     page.drawLine({ start: { x: marginLeft, y }, end: { x: marginRight, y }, thickness: 1, color: rgb(0.6, 0.6, 0.6) })
-    y -= 25
+    y -= 20
+
+    // Si hay descuento, lo mostramos antes del total
+    if (montoDescuento > 0) {
+        page.drawText(`DESCUENTO (${descuentoPorcentaje}%)`, { x: colX0 + 5, y, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+        const descText = `- $ ${formatNumber(montoDescuento)}`
+        page.drawText(descText, { x: colX4 - font.widthOfTextAtSize(descText, 9) - 5, y, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+        y -= 20
+    }
 
     const labelTotal = `TOTAL ESTIMADO`
     const labelWidth = fontBold.widthOfTextAtSize(labelTotal, 14)
@@ -390,32 +409,48 @@ export const descargarPDF = async (
     page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
     // ==========================================================================
-    // 8. PIE DE PÁGINA GLOBAL (Texto legal y Paginación)
+    // 8. PIE DE PÁGINA GLOBAL (Texto legal, Datos Bancarios y Paginación)
     // ==========================================================================
 
     // Obtenemos todas las páginas del documento para iterar sobre ellas
     const pages = pdfDoc.getPages()
     const totalPages = pages.length
 
+    // Preparamos el texto de los datos bancarios (si existen)
+    const cbuText = perfilData.cbu ? `CBU: ${perfilData.cbu}` : '';
+    const aliasText = perfilData.alias ? `Alias: ${perfilData.alias}` : '';
+    const bancoInfo = [cbuText, aliasText].filter(Boolean).join('  |  ');
+
     pages.forEach((p, index) => {
-        // Texto legal (Izquierda)
+        // Texto legal (Izquierda, abajo)
         p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
             x: marginLeft,
-            y: 30,
+            y: 40, // Lo subimos un poquito para dejar espacio a los datos bancarios
             size: 7,
             font: font,
             color: rgb(0.5, 0.5, 0.5)
         })
 
-        // Paginación (Derecha) - "Página X de Y"
+        // Datos Bancarios (Si el profesional los cargó)
+        if (bancoInfo) {
+            p.drawText(`Datos de transferencia -> ${bancoInfo}`, {
+                x: marginLeft,
+                y: 28,
+                size: 8,
+                font: fontBold,
+                color: rgb(0.11, 0.22, 0.54) // Azul oscuro
+            })
+        }
+
+        // Paginación (Derecha, abajo) - "Página X de Y"
         const pageNumberText = `Página ${index + 1} de ${totalPages}`
         const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
 
         p.drawText(pageNumberText, {
-            x: marginRight - textWidth, // Alineado a la derecha
-            y: 30,                      // Misma altura que el texto legal
+            x: marginRight - textWidth,
+            y: 30,
             size: 8,
-            font: fontBold,             // Usamos negrita para que resalte un poco más
+            font: fontBold,
             color: rgb(0.5, 0.5, 0.5)
         })
     })

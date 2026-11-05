@@ -47,6 +47,8 @@ export type Perfil = {
     acepto_terminos?: boolean;
     ha_visto_tutorial?: boolean;
     is_admin?: boolean;
+    cbu?: string;
+    alias?: string;
 }
 // ============================================================================
 // NUEVOS TIPOS PARA EL MINI-CRM Y EL CARRITO
