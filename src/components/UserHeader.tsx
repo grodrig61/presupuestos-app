@@ -11,6 +11,9 @@ interface Props {
     onVolver?: () => void;
     itemsCount?: number;
     onVerCarrito?: () => void;
+    // NUEVAS PROPS PARA EL ADMIN
+    isAdmin?: boolean;
+    onVerAdmin?: () => void;
 }
 
 export const UserHeader = ({
@@ -22,7 +25,9 @@ export const UserHeader = ({
     mostrarBotonVolver,
     onVolver,
     itemsCount = 0,
-    onVerCarrito
+    onVerCarrito,
+    isAdmin,
+    onVerAdmin
 }: Props) => {
     return (
         <div className="user-header">
@@ -74,7 +79,13 @@ export const UserHeader = ({
                     </button>
                 )}
 
-                {/* ÍCONOS SVG EN LUGAR DE EMOJIS */}
+                {/* BOTÓN OCULTO DE ADMIN */}
+                {isAdmin && onVerAdmin && (
+                    <button className="btn" onClick={onVerAdmin} style={{ backgroundColor: '#fef08a', color: '#854d0e', border: '1px solid #eab308', gap: '6px' }}>
+                        👑 Admin
+                    </button>
+                )}
+
                 <button className="btn btn-secondary" onClick={onVerReporte} style={{ gap: '8px' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="20" x2="12" y2="10"></line>

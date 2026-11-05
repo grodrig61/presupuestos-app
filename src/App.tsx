@@ -40,6 +40,10 @@ function App() {
   const [vistaReporte, setVistaReporte] = useState(false)
   const [vistaCarrito, setVistaCarrito] = useState(false)
 
+  // --- ESTADO PARA EL PANEL DE ADMIN ---
+  const [vistaAdmin, setVistaAdmin] = useState(false)
+  const [adminStats, setAdminStats] = useState({ total_users: 0, total_budgets: 0, total_quoted: 0, total_approved: 0 })
+
   // --- ESTADOS DEL CARRITO ---
   const [itemsCarrito, setItemsCarrito] = useState<ItemCarrito[]>([])
   const [edicionId, setEdicionId] = useState<string | null>(null)
@@ -137,7 +141,7 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false); setEmail(''); setMensajeAuth('')
+    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false); setVistaAdmin(false); setEmail(''); setMensajeAuth('')
   }
 
   const guardarPerfil = async (e: React.FormEvent) => {
@@ -191,7 +195,7 @@ function App() {
     }
     await supabase.auth.signOut();
     setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null);
-    setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
+    setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false); setVistaAdmin(false);
     setEmail(''); setMensajeAuth('');
     setConfirmarBorrarCuenta(false);
     alert("Tu cuenta y todos tus datos han sido eliminados permanentemente.");
@@ -346,7 +350,7 @@ function App() {
   // ==========================================================================
   const irAHistorial = async () => {
     if (!session) return
-    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
+    setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false); setVistaAdmin(false);
     const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
     if (!error && data) setHistorial(data);
     setLoadingHistorial(false)
@@ -451,6 +455,21 @@ function App() {
     XLSX.writeFile(libro, nombreArchivo);
   }
 
+  // --- FUNCIÓN PARA EL PANEL DE ADMIN ---
+  const irAAdmin = async () => {
+    if (!session) return;
+    setVistaAdmin(true); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
+
+    // Llamamos a la función SQL segura
+    const { data, error } = await supabase.rpc('get_admin_stats');
+    if (!error && data) {
+      setAdminStats(data);
+    } else {
+      console.error(error);
+      setErrorValidacion("Error al cargar estadísticas.");
+    }
+  }
+
   // ==========================================================================
   // 8. RENDERIZADO
   // ==========================================================================
@@ -476,7 +495,7 @@ function App() {
     return (
       // <div className="auth-container">
       <div className="auth-container" onClick={() => setVistaPerfil(false)}>
-        <div className="auth-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+        <div className="auth-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}> {/* <--- AGREGADO EL stopPropagation */}
 
 
           {errorValidacion && <div className="error-banner" style={{ position: 'absolute', top: '-20px', right: '-20px' }}><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
@@ -593,6 +612,53 @@ function App() {
 
   if (loadingData) return <div className="spinner-container"><div className="spinner"></div></div>
 
+  // PANTALLA OCULTA: PANEL DE ADMINISTRADOR
+  if (vistaAdmin) {
+    return (
+      <div className="app-wrapper">
+        <UserHeader
+          perfil={perfil}
+          onVerHistorial={irAHistorial}
+          onVerPerfil={() => { setVistaPerfil(true); setVistaAdmin(false); }}
+          onVerReporte={() => { setVistaReporte(true); setVistaAdmin(false); }}
+          onLogout={handleLogout}
+          mostrarBotonVolver={true}
+          onVolver={() => setVistaAdmin(false)}
+          itemsCount={itemsCarrito.length}
+          onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
+        />
+
+        <div className="page-header">
+          <div>
+            <h1>Panel de Administrador 👑</h1>
+            <p>Métricas globales de la plataforma</p>
+          </div>
+        </div>
+
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="panel kpi-card">
+            <h4 className="kpi-title">Usuarios Registrados</h4>
+            <div className="kpi-value" style={{ color: 'var(--primary)' }}>{adminStats.total_users}</div>
+          </div>
+          <div className="panel kpi-card">
+            <h4 className="kpi-title">Presupuestos Generados</h4>
+            <div className="kpi-value" style={{ color: '#8b5cf6' }}>{adminStats.total_budgets}</div>
+          </div>
+          <div className="panel kpi-card">
+            <h4 className="kpi-title">Total Cotizado</h4>
+            <div className="kpi-value" style={{ color: 'var(--text)' }}>${formatNumber(adminStats.total_quoted)}</div>
+          </div>
+          <div className="panel kpi-card">
+            <h4 className="kpi-title">Total Aprobado</h4>
+            <div className="kpi-value" style={{ color: 'var(--success)' }}>${formatNumber(adminStats.total_approved)}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (vistaReporte) {
     return (
       <div className="app-wrapper">
@@ -606,6 +672,8 @@ function App() {
           onVolver={() => setVistaReporte(false)}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
         />
         <div className="page-header"><div><h1>Resumen de Gestión</h1></div></div>
         <ReporteGestion historial={historial} familias={familias} />
@@ -651,6 +719,8 @@ function App() {
           onVolver={() => { setVistaCarrito(false); }}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
         />
 
         <div className="page-header">
@@ -744,6 +814,8 @@ function App() {
           onVolver={() => setVistaHistorial(false)}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
         />
 
         <div className="page-header">
@@ -852,6 +924,8 @@ function App() {
           onLogout={handleLogout}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
         />
         <div className="page-header">
           <div>
@@ -915,6 +989,8 @@ function App() {
           onLogout={handleLogout}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
+          isAdmin={perfil?.is_admin}
+          onVerAdmin={irAAdmin}
         />
         <div className="page-header">
           <div>
@@ -941,6 +1017,8 @@ function App() {
         onLogout={handleLogout}
         itemsCount={itemsCarrito.length}
         onVerCarrito={() => setVistaCarrito(true)}
+        isAdmin={perfil?.is_admin}
+        onVerAdmin={irAAdmin}
       />
 
       <div className="page-header"><div><h1>Presupuestos Pro</h1><p>Seleccioná una categoría</p></div></div>
