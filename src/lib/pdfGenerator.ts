@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import QRCode from 'qrcode' // <--- NUEVA IMPORTACIÓN
+import QRCode from 'qrcode'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
 import type { ItemCarrito } from '../types'
 
@@ -289,7 +289,7 @@ export const descargarPDF = async (
     for (let i = 0; i < itemsData.length; i++) {
         const item = itemsData[i]
 
-        // Si no hay espacio suficiente en la página actual, creamos una nueva
+        // MARGEN DE SEGURIDAD: Si no hay espacio suficiente (dejamos 150 puntos para el final de la tabla y el pie), creamos una nueva página
         if (y < 150) {
             const nuevaPagina = agregarPagina()
             page = nuevaPagina.page
@@ -331,8 +331,8 @@ export const descargarPDF = async (
 
         // Iteramos sobre los resultados calculados de este ítem
         Object.entries(item.resultados).forEach(([clave, cantidad]: any) => {
-            // Validación para salto de página en medio de una tabla
-            if (y < 50) {
+            // Validación para salto de página en medio de una tabla. Dejamos 80 puntos libres abajo para el pie de página.
+            if (y < 80) {
                 const nuevaPagina = agregarPagina()
                 page = nuevaPagina.page
                 y = nuevaPagina.y
@@ -385,8 +385,8 @@ export const descargarPDF = async (
     // 7. GASTOS GENERALES, DESCUENTO Y TOTAL FINAL
     // ==========================================================================
 
-    // Si no hay espacio, nueva página
-    if (y < 120) { // Aumentamos el margen por si hay descuento
+    // MARGEN DE SEGURIDAD: Si no hay espacio para los totales (dejamos 150 puntos), nueva página
+    if (y < 150) {
         const nuevaPagina = agregarPagina()
         page = nuevaPagina.page
         y = nuevaPagina.y
@@ -442,50 +442,50 @@ export const descargarPDF = async (
     const aliasText = perfilData.alias ? `Alias: ${perfilData.alias}` : '';
     const bancoInfo = [cbuText, aliasText].filter(Boolean).join('  |  ');
 
+    // Definimos la altura del pie de página (alineado para que el texto, el QR y el número coincidan)
+    const footerY = 45;
+    const qrSize = 40;
+
     pages.forEach((p, index) => {
-        // Datos Bancarios (Si el profesional los cargó)
+        // 1. Datos Bancarios (Izquierda)
         if (bancoInfo) {
             p.drawText(`Datos de transferencia | ${bancoInfo}`, {
                 x: marginLeft,
-                y: 28,
+                y: footerY,
                 size: 8,
                 font: fontBold,
                 color: rgb(0.11, 0.22, 0.54) // Azul oscuro
             })
         }
 
-        // DIBUJAR EL QR EN EL PIE DE PÁGINA
-        // Lo dibujamos a la derecha, encima o al lado del número de página
+        // 2. QR (Centro)
         if (qrImagePng) {
+            const qrX = (595 / 2) - (qrSize / 2); // Centrado exacto en A4
             p.drawImage(qrImagePng, {
-                x: marginRight - 50, // A 50 puntos del margen derecho
-                y: 15,               // Altura en el pie
-                width: 45,           // Ancho del QR
-                height: 45           // Alto del QR
+                x: qrX,
+                y: footerY - (qrSize / 2) + 4, // Alineado visualmente con el texto
+                width: qrSize,
+                height: qrSize
             })
         }
 
-        // Texto legal (Izquierda, abajo)
-        p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
-            x: marginLeft,
-            y: 40, // Lo subimos un poquito para dejar espacio a los datos bancarios
-            size: 7,
-            font: font,
+        // 3. Paginación (Derecha)
+        const pageNumberText = `Página ${index + 1} de ${totalPages}`
+        const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
+        p.drawText(pageNumberText, {
+            x: marginRight - textWidth,
+            y: footerY,
+            size: 8,
+            font: fontBold,
             color: rgb(0.5, 0.5, 0.5)
         })
 
-        // Paginación (Derecha, abajo) - "Página X de Y"
-        // Si hay QR, lo subimos un poquito o lo ponemos a la izquierda del QR para que no choquen
-        const pageNumberText = `Página ${index + 1} de ${totalPages}`
-        const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
-
-        const pageNumY = qrImagePng ? 65 : 30; // Si hay QR, subimos el texto para que no se superponga
-
-        p.drawText(pageNumberText, {
-            x: marginRight - textWidth,
-            y: pageNumY,
-            size: 8,
-            font: fontBold,
+        // 4. Texto legal (Abajo de todo a la izquierda)
+        p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
+            x: marginLeft,
+            y: 25,
+            size: 7,
+            font: font,
             color: rgb(0.5, 0.5, 0.5)
         })
     })
