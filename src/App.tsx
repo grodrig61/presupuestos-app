@@ -29,6 +29,8 @@ function App() {
   const [cuit, setCuit] = useState('')
   const [telefono, setTelefono] = useState('')
   const [matricula, setMatricula] = useState('')
+  const [cbu, setCbu] = useState('') // <--- ESTADO AGREGADO
+  const [alias, setAlias] = useState('') // <--- ESTADO AGREGADO
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
 
@@ -71,7 +73,7 @@ function App() {
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
   const [gastosGenerales, setGastosGenerales] = useState<string>('')
-  const [descuento, setDescuento] = useState<string>('0') // <--- ESTADO DE DESCUENTO
+  const [descuento, setDescuento] = useState<string>('0')
   const [vigenciaDias, setVigenciaDias] = useState<string>('15')
 
   // --- ESTADOS DEL BUSCADOR DE CLIENTES ---
@@ -132,6 +134,7 @@ function App() {
     if (data) {
       setPerfil(data)
       setNombre(data.nombre || ''); setCuit(data.cuit || ''); setTelefono(data.telefono || ''); setMatricula(data.matricula || '');
+      setCbu(data.cbu || ''); setAlias(data.alias || ''); // <--- CARGAMOS DATOS BANCARIOS
     }
     setAuthLoading(false)
     cargarFamilias()
@@ -177,7 +180,10 @@ function App() {
         }
       }
 
-      await supabase.from('perfiles').upsert({ id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl })
+      // GUARDAMOS DATOS BANCARIOS
+      await supabase.from('perfiles').upsert({
+        id: currentSession.user.id, nombre, cuit, telefono, matricula, logo_url: logoUrl, cbu, alias
+      })
       await cargarPerfil(currentSession.user.id)
       setVistaPerfil(false)
       setLogoFile(null)
@@ -316,7 +322,7 @@ function App() {
     if (!cliente.nombre.trim()) { setErrorValidacion("Falta el nombre del cliente."); return; }
 
     const numVigencia = Number(vigenciaDias) || 15;
-    const numDescuento = Number(descuento) || 0; // <--- VARIABLE CALCULADA
+    const numDescuento = Number(descuento) || 0;
 
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
@@ -337,7 +343,7 @@ function App() {
         usuario_id: session.user.id,
         rubro_id: itemsCarrito[0].rubro.id,
         cliente_nombre: cliente.nombre,
-        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, descuento: numDescuento, vigenciaDias: numVigencia }, // <--- GUARDAMOS DESCUENTO
+        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, descuento: numDescuento, vigenciaDias: numVigencia },
         resultado_calculo: { totalGeneral },
         total: totalGeneral,
         estado: 'pendiente'
@@ -363,14 +369,14 @@ function App() {
       trabajo,
       itemsCarrito,
       gastosGenerales,
-      numDescuento, // <--- PASAMOS EL DESCUENTO AL PDF
+      numDescuento,
       numVigencia,
       new Date().toISOString(),
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
-    setGastosGenerales(''); setDescuento('0'); setVistaCarrito(false); setVistaHistorial(false); // <--- RESETEAMOS DESCUENTO
+    setGastosGenerales(''); setDescuento('0'); setVistaCarrito(false); setVistaHistorial(false);
   }
 
   // ==========================================================================
@@ -389,7 +395,7 @@ function App() {
     setCliente(p.datos_entrada.cliente);
     setTrabajo(p.datos_entrada.trabajo);
     setGastosGenerales(p.datos_entrada.gastosGenerales || '');
-    setDescuento(p.datos_entrada.descuento ? p.datos_entrada.descuento.toString() : '0'); // <--- CARGAMOS DESCUENTO
+    setDescuento(p.datos_entrada.descuento ? p.datos_entrada.descuento.toString() : '0');
     setVigenciaDias(p.datos_entrada.vigenciaDias ? p.datos_entrada.vigenciaDias.toString() : '15');
     setItemsCarrito(p.datos_entrada.items || []);
     setVistaHistorial(false);
@@ -417,7 +423,6 @@ function App() {
       const descPorcentaje = Number(p.datos_entrada?.descuento) || 0;
       const totalFinal = p.total;
 
-      // Calculamos el total bruto (antes del descuento) de forma matemática inversa
       let totalBruto = totalFinal;
       let montoDescuento = 0;
 
@@ -470,22 +475,19 @@ function App() {
 
     // Formatos Hoja Resumen
     for (let i = 2; i <= resumenData.length + 1; i++) {
-      // F=Materiales, G=Gastos, I=Descuento($), J=Total Final
       ['F', 'G', 'I', 'J'].forEach(col => {
         if (wsResumen[`${col}${i}`]) wsResumen[`${col}${i}`].z = '"$"#,##0.00';
       });
-      // H=Descuento(%)
       if (wsResumen[`H${i}`]) wsResumen[`H${i}`].z = '0.00"%"';
     }
 
     // Formatos Hoja Detalle
     for (let i = 2; i <= detalleData.length + 1; i++) {
-      if (wsDetalle[`E${i}`]) wsDetalle[`E${i}`].z = '0.00'; // Cantidad
-      if (wsDetalle[`F${i}`]) wsDetalle[`F${i}`].z = '"$"#,##0.00'; // P.Unitario
-      if (wsDetalle[`G${i}`]) wsDetalle[`G${i}`].z = '"$"#,##0.00'; // Subtotal
+      if (wsDetalle[`E${i}`]) wsDetalle[`E${i}`].z = '0.00';
+      if (wsDetalle[`F${i}`]) wsDetalle[`F${i}`].z = '"$"#,##0.00';
+      if (wsDetalle[`G${i}`]) wsDetalle[`G${i}`].z = '"$"#,##0.00';
     }
 
-    // Ancho de columnas (Agregamos una columna más para el Descuento en $)
     wsResumen['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
     wsDetalle['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 35 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
 
@@ -502,7 +504,6 @@ function App() {
     if (!session) return;
     setVistaAdmin(true); setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
 
-    // Llamamos a la función SQL segura
     const { data, error } = await supabase.rpc('get_admin_stats');
     if (!error && data) {
       setAdminStats(data);
@@ -581,6 +582,13 @@ function App() {
             <div className="input-group"><label>CUIT</label><input type="text" value={cuit} onChange={e => setCuit(e.target.value)} /></div>
             <div className="input-group"><label>Teléfono</label><input type="text" value={telefono} onChange={e => setTelefono(e.target.value)} /></div>
             <div className="input-group"><label>Matrícula Profesional</label><input type="text" value={matricula} onChange={e => setMatricula(e.target.value)} /></div>
+
+            {/* DATOS BANCARIOS (Agregados en una fila para ahorrar espacio) */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="input-group" style={{ flex: 1 }}><label>CBU</label><input type="text" value={cbu} onChange={e => setCbu(e.target.value)} placeholder="Opcional" /></div>
+              <div className="input-group" style={{ flex: 1 }}><label>Alias</label><input type="text" value={alias} onChange={e => setAlias(e.target.value)} placeholder="Opcional" /></div>
+            </div>
+
             <div className="input-group"><label>Logo (Dejar en blanco para mantener el actual)</label><input type="file" accept="image/png, image/jpeg" onChange={e => setLogoFile(e.target.files?.[0] || null)} /></div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button type="submit" className="btn btn-primary" disabled={guardandoPerfil}>{guardandoPerfil ? 'Guardando...' : 'Guardar Cambios'}</button>
@@ -999,7 +1007,6 @@ function App() {
               </svg>
               Exportar a Excel
             </button>
-            {/* BOTÓN CORREGIDO: Ahora vuelve al Home en lugar del carrito vacío */}
             <button
               className="btn btn-primary"
               onClick={() => {
