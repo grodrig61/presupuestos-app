@@ -11,7 +11,7 @@ interface Props {
     onVolver?: () => void;
     itemsCount?: number;
     onVerCarrito?: () => void;
-    // NUEVAS PROPS PARA EL ADMIN
+    // PROPS PARA EL ADMIN
     isAdmin?: boolean;
     onVerAdmin?: () => void;
 }
@@ -79,10 +79,13 @@ export const UserHeader = ({
                     </button>
                 )}
 
-                {/* BOTÓN OCULTO DE ADMIN */}
+                {/* BOTÓN OCULTO DE ADMIN (Mismo estilo que los demás) */}
                 {isAdmin && onVerAdmin && (
-                    <button className="btn" onClick={onVerAdmin} style={{ backgroundColor: '#fef08a', color: '#854d0e', border: '1px solid #eab308', gap: '6px' }}>
-                        👑 Admin
+                    <button className="btn btn-secondary" onClick={onVerAdmin} style={{ gap: '8px' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        Admin
                     </button>
                 )}
 
