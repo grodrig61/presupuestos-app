@@ -433,7 +433,7 @@ export const descargarPDF = async (
             })
         }
 
-        // Texto legal (Izquierda)
+        // Texto legal (Izquierda, abajo)
         p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
             x: marginLeft,
             y: 40, // Lo subimos un poquito para dejar espacio a los datos bancarios
