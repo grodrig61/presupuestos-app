@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { useEffect, useState, useMemo } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from './lib/supabaseClient'
 import { descargarPDF } from './lib/pdfGenerator'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './lib/utils'
@@ -341,7 +342,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 7. LÓGICA DEL HISTORIAL Y BACKUP CSV
+  // 7. LÓGICA DEL HISTORIAL Y BACKUP EXCEL
   // ==========================================================================
   const irAHistorial = async () => {
     if (!session) return
@@ -374,29 +375,23 @@ function App() {
     return filtrado;
   }, [historial, filtroCliente, filtroEstado]);
 
-  // Función para exportar a Excel/CSV
-  const exportarCSV = () => {
+  const exportarExcel = () => {
     if (historialFiltrado.length === 0) return;
 
-    const headers = ['Fecha', 'Cliente', 'Total', 'Estado', 'Descripcion'];
-    const rows = historialFiltrado.map(p => [
-      new Date(p.creado_en).toLocaleDateString('es-AR'),
-      `"${p.cliente_nombre}"`,
-      p.total,
-      p.estado,
-      `"${p.datos_entrada?.trabajo?.descripcion || ''}"`
-    ]);
+    const datosParaExcel = historialFiltrado.map(p => ({
+      'Fecha': new Date(p.creado_en).toLocaleDateString('es-AR'),
+      'Cliente': p.cliente_nombre,
+      'Monto Total': p.total,
+      'Estado': p.estado.charAt(0).toUpperCase() + p.estado.slice(1),
+      'Descripción': p.datos_entrada?.trabajo?.descripcion || ''
+    }));
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    // El \uFEFF es crucial para que Excel reconozca los acentos (á, é, í, ñ)
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Backup_Presupuestos_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const hoja = XLSX.utils.json_to_sheet(datosParaExcel);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Presupuestos");
+
+    const nombreArchivo = `Backup_Presupuestos_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(libro, nombreArchivo);
   }
 
   // ==========================================================================
@@ -492,7 +487,6 @@ function App() {
     )
   }
 
-  // --- PANTALLA DE ONBOARDING (TUTORIAL) ---
   if (perfil && perfil.ha_visto_tutorial === false) {
     return (
       <div className="auth-container" style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)' }}>
@@ -500,7 +494,6 @@ function App() {
           <h2 style={{ fontSize: '1.5rem', marginBottom: '5px' }}>¡Bienvenido a Presupuestos Pro!</h2>
           <p style={{ color: 'var(--text-light)', marginBottom: '25px' }}>Tu nuevo asistente de obras.</p>
 
-          {/* Paso 1 */}
           {pasoTutorial === 1 && (
             <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
               <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
@@ -510,7 +503,6 @@ function App() {
             </div>
           )}
 
-          {/* Paso 2 */}
           {pasoTutorial === 2 && (
             <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
               <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🧮</div>
@@ -523,7 +515,6 @@ function App() {
             </div>
           )}
 
-          {/* Paso 3 */}
           {pasoTutorial === 3 && (
             <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
               <div style={{ fontSize: '3rem', marginBottom: '15px' }}>📲</div>
@@ -698,8 +689,13 @@ function App() {
         <div className="page-header">
           <div><h1>Mis Presupuestos</h1></div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button className="btn btn-secondary" onClick={exportarCSV} style={{ width: 'auto' }}>
-              📊 Exportar a Excel
+            <button className="btn btn-secondary" onClick={exportarExcel} style={{ width: 'auto', gap: '8px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Exportar a Excel
             </button>
             <button className="btn btn-primary" onClick={() => { setItemsCarrito([]); setEdicionId(null); setVistaCarrito(true); }} style={{ width: 'auto' }}>
               + Nuevo Presupuesto
