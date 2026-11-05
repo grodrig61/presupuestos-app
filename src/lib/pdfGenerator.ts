@@ -11,25 +11,25 @@ import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './ut
 import type { ItemCarrito } from '../types'
 
 export const descargarPDF = async (
-    // 1. Datos del profesional
+    // 1. Datos del profesional (Nombre, CUIT, Logo, CBU, etc.)
     perfilData: any,
 
-    // 2. Datos del cliente
+    // 2. Datos del cliente (Nombre, Domicilio, Teléfono)
     clienteData: any,
 
-    // 3. Datos del trabajo general
+    // 3. Datos del trabajo general (Descripción y Tareas)
     trabajoData: any,
 
     // 4. Los ítems del carrito (Array de rubros calculados)
     itemsData: ItemCarrito[],
 
-    // 5. Gastos generales
+    // 5. Gastos generales (Monto en texto o número)
     gastos: string,
 
     // 6. Descuento a aplicar (%)
     descuentoPorcentaje: number,
 
-    // 7. Días de validez
+    // 7. Días de validez del presupuesto
     vigenciaDias: number,
 
     // 8. Fecha de creación (para calcular el vencimiento)
@@ -40,40 +40,49 @@ export const descargarPDF = async (
 ) => {
 
     // --- INICIALIZACIÓN DEL DOCUMENTO ---
-    // Creamos un nuevo documento PDF
+    // Creamos un nuevo documento PDF en blanco
     const pdfDoc = await PDFDocument.create()
 
-    // Cargamos las fuentes estándar
+    // Cargamos las fuentes estándar de Helvetica (Normal y Negrita)
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-    // Definimos los márgenes del documento
+    // Definimos los márgenes del documento (40 puntos es aprox 1.5 cm)
     const marginLeft = 40
     const marginRight = 595 - 40
 
     // Función auxiliar para crear nuevas páginas si el presupuesto es muy largo
     const agregarPagina = () => {
-        const page = pdfDoc.addPage([595, 842]) // Tamaño A4
-        return { page, y: 842 - 50 } // y = altura - margen superior
+        // Creamos una página de tamaño A4 (595 x 842 puntos)
+        const page = pdfDoc.addPage([595, 842])
+
+        // Retornamos la página y la coordenada Y inicial (altura - margen superior)
+        return { page, y: 842 - 50 }
     }
 
-    // Creamos la primera página
+    // Creamos la primera página y extraemos las variables page e y
     let { page, y } = agregarPagina()
 
     // ==========================================================================
     // GENERACIÓN PREVIA DEL QR (Si hay datos bancarios)
     // ==========================================================================
+
+    // Variable que almacenará la imagen del QR en formato PNG embebido
     let qrImagePng: any = null;
-    // Lógica: Prioridad al CBU, si no hay, usa el Alias.
+
+    // Lógica de prioridad: Si hay CBU lo usa, sino usa el Alias.
+    // El CBU es el estándar más seguro para que cualquier banco lo lea.
     const qrData = perfilData.cbu || perfilData.alias;
 
     if (qrData) {
         try {
-            // Generamos el código QR como Data URL (Base64)
+            // Generamos el código QR como Data URL (Base64) usando la librería qrcode
             const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 150 });
+
             // Convertimos el Data URL a un ArrayBuffer para que pdf-lib lo pueda leer
             const qrArrayBuffer = await fetch(qrDataUrl).then(res => res.arrayBuffer());
-            // Embebemos la imagen en el documento
+
+            // Embebemos la imagen en el documento PDF
             qrImagePng = await pdfDoc.embedPng(qrArrayBuffer);
         } catch (error) {
             console.log('Error generando el QR', error);
@@ -97,7 +106,7 @@ export const descargarPDF = async (
                     logoImage = await pdfDoc.embedJpg(logoArrayBuffer)
                 }
 
-                // Limitamos el logo a un máximo de 65x65 puntos.
+                // Limitamos el logo a un tamaño máximo de 65x65 puntos.
                 const maxLogoSize = 65
                 const originalDims = logoImage.scale(1)
                 const scaleFactor = Math.min(
@@ -106,6 +115,7 @@ export const descargarPDF = async (
                 )
                 const logoDims = logoImage.scale(scaleFactor)
 
+                // Dibujamos el logo en la esquina superior izquierda
                 page.drawImage(logoImage, {
                     x: marginLeft,
                     y: y - logoDims.height,
@@ -130,13 +140,14 @@ export const descargarPDF = async (
         y: y,
         size: 18,
         font: fontBold,
-        color: rgb(0.11, 0.22, 0.54) // Azul oscuro
+        color: rgb(0.11, 0.22, 0.54) // Azul oscuro corporativo
     })
 
     // Cálculo de fechas
     const fechaBase = new Date(fechaCreacionOriginal)
     const fechaStr = fechaBase.toLocaleDateString('es-AR')
 
+    // Calculamos la fecha de vencimiento sumando los días de vigencia
     const fechaVencimiento = new Date(fechaBase)
     fechaVencimiento.setDate(fechaVencimiento.getDate() + vigenciaDias)
     const fechaVencimientoStr = fechaVencimiento.toLocaleDateString('es-AR')
@@ -255,6 +266,7 @@ export const descargarPDF = async (
         let line = ''
 
         for (const word of words) {
+            // Si la palabra agregada supera el ancho máximo, hacemos salto de línea
             if (font.widthOfTextAtSize(line + word, 9) > maxWidth) {
                 page.drawText(line, { x, y, size: 9, font })
                 line = word + ' '
@@ -264,7 +276,10 @@ export const descargarPDF = async (
             }
         }
 
+        // Dibujamos la última línea restante
         page.drawText(line, { x, y, size: 9, font })
+
+        // Retornamos la nueva coordenada Y
         return y - 15
     }
 
@@ -289,7 +304,7 @@ export const descargarPDF = async (
     for (let i = 0; i < itemsData.length; i++) {
         const item = itemsData[i]
 
-        // MARGEN DE SEGURIDAD: Si no hay espacio suficiente (dejamos 150 puntos para el final de la tabla y el pie), creamos una nueva página
+        // MARGEN DE SEGURIDAD: Si no hay espacio suficiente, creamos una nueva página
         if (y < 150) {
             const nuevaPagina = agregarPagina()
             page = nuevaPagina.page
@@ -331,7 +346,7 @@ export const descargarPDF = async (
 
         // Iteramos sobre los resultados calculados de este ítem
         Object.entries(item.resultados).forEach(([clave, cantidad]: any) => {
-            // Validación para salto de página en medio de una tabla. Dejamos 80 puntos libres abajo para el pie de página.
+            // Validación para salto de página en medio de una tabla
             if (y < 80) {
                 const nuevaPagina = agregarPagina()
                 page = nuevaPagina.page
@@ -340,6 +355,10 @@ export const descargarPDF = async (
 
             const costoCercano = buscarPrecioCercano(clave, item.rubro.costos)
             let precioUnitario = costoCercano ? Number(item.valores[costoCercano.clave] || 0) : 0
+
+            // Aseguramos que no haya números negativos
+            precioUnitario = Math.max(0, precioUnitario)
+
             const subtotal = cantidad * precioUnitario
             totalGeneral += subtotal
 
@@ -382,18 +401,23 @@ export const descargarPDF = async (
     }
 
     // ==========================================================================
-    // 7. GASTOS GENERALES, DESCUENTO Y TOTAL FINAL
+    // 7. GASTOS GENERALES, DESCUENTO Y TOTAL FINAL (ALINEADO A LA GRILLA)
     // ==========================================================================
 
-    // MARGEN DE SEGURIDAD: Si no hay espacio para los totales (dejamos 150 puntos), nueva página
+    // MARGEN DE SEGURIDAD: Si no hay espacio para los totales, nueva página
     if (y < 150) {
         const nuevaPagina = agregarPagina()
         page = nuevaPagina.page
         y = nuevaPagina.y
     }
 
-    const montoGastos = Number(gastos) || 0
+    // FILA: GASTOS GENERALES
+    const montoGastos = Math.max(0, Number(gastos)) || 0
     if (montoGastos > 0) {
+        // Borde superior de la fila
+        page.drawLine({ start: { x: colX0, y: y + 12 }, end: { x: colX4, y: y + 12 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+
+        // Texto alineado a la izquierda, Monto a la derecha
         page.drawText('GASTOS GENERALES', { x: colX0 + 5, y, size: 9, font: fontBold })
         const ggSubText = `$ ${formatNumber(montoGastos)}`
         page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y, size: 9, font: fontBold, color: rgb(0.06, 0.72, 0.51) })
@@ -402,32 +426,39 @@ export const descargarPDF = async (
 
     totalGeneral += montoGastos
 
-    // Lógica de Descuento
+    // FILA: DESCUENTO
     let montoDescuento = 0;
-    if (descuentoPorcentaje > 0) {
-        montoDescuento = totalGeneral * (descuentoPorcentaje / 100);
+    const descPorcentajeSeguro = Math.max(0, descuentoPorcentaje) || 0;
+
+    if (descPorcentajeSeguro > 0) {
+        montoDescuento = totalGeneral * (descPorcentajeSeguro / 100);
         totalGeneral -= montoDescuento;
-    }
 
-    y -= 10
-    page.drawLine({ start: { x: marginLeft, y }, end: { x: marginRight, y }, thickness: 1, color: rgb(0.6, 0.6, 0.6) })
-    y -= 20
+        // Borde superior de la fila
+        page.drawLine({ start: { x: colX0, y: y + 12 }, end: { x: colX4, y: y + 12 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
 
-    // Si hay descuento, lo mostramos antes del total
-    if (montoDescuento > 0) {
-        page.drawText(`DESCUENTO (${descuentoPorcentaje}%)`, { x: colX0 + 5, y, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+        page.drawText(`DESCUENTO (${descPorcentajeSeguro}%)`, { x: colX0 + 5, y, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
         const descText = `- $ ${formatNumber(montoDescuento)}`
         page.drawText(descText, { x: colX4 - font.widthOfTextAtSize(descText, 9) - 5, y, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
-        y -= 20
+        y -= 15
     }
 
-    const labelTotal = `TOTAL ESTIMADO`
-    const labelWidth = fontBold.widthOfTextAtSize(labelTotal, 14)
-    page.drawText(labelTotal, { x: colX4 - 150 - labelWidth, y, size: 14, font: fontBold })
+    // FILA: TOTAL FINAL (DESTACADO)
+    y -= 5 // Un poco de aire
 
+    // Borde superior grueso
+    page.drawLine({ start: { x: colX0, y: y + 10 }, end: { x: colX4, y: y + 10 }, thickness: 1, color: rgb(0.6, 0.6, 0.6) })
+
+    // Fondo gris para destacar el total
+    page.drawRectangle({ x: colX0, y: y - 10, width: colX4 - colX0, height: 25, color: rgb(0.96, 0.96, 0.96) })
+
+    // Texto y monto alineados con la grilla
+    page.drawText('TOTAL ESTIMADO', { x: colX0 + 5, y: y, size: 12, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     const montoTotal = `$ ${formatNumber(totalGeneral)}`
-    const montoWidth = fontBold.widthOfTextAtSize(montoTotal, 16)
-    page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
+    page.drawText(montoTotal, { x: colX4 - font.widthOfTextAtSize(montoTotal, 14) - 5, y: y - 2, size: 14, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
+
+    // Línea inferior del total
+    page.drawLine({ start: { x: colX0, y: y - 10 }, end: { x: colX4, y: y - 10 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
     // ==========================================================================
     // 8. PIE DE PÁGINA GLOBAL (Texto legal, Datos Bancarios, QR y Paginación)
@@ -437,7 +468,7 @@ export const descargarPDF = async (
     const pages = pdfDoc.getPages()
     const totalPages = pages.length
 
-    // CORRECCIÓN 1: Lógica exclusiva (Prioridad CBU, sino Alias, sino nada)
+    // CORRECCIÓN: Lógica exclusiva (Prioridad CBU, sino Alias, sino nada)
     let bancoInfo = '';
     if (perfilData.cbu) {
         bancoInfo = `CBU: ${perfilData.cbu}`;
@@ -445,7 +476,7 @@ export const descargarPDF = async (
         bancoInfo = `Alias: ${perfilData.alias}`;
     }
 
-    // Definimos la altura del pie de página
+    // Definimos la altura del pie de página y el tamaño del QR
     const footerY = 45;
     const qrSize = 40;
 
@@ -461,9 +492,9 @@ export const descargarPDF = async (
             })
         }
 
-        // 2. QR (Centro)
+        // 2. QR (Centro exacto en A4)
         if (qrImagePng) {
-            const qrX = (595 / 2) - (qrSize / 2); // Centrado exacto en A4
+            const qrX = (595 / 2) - (qrSize / 2);
             p.drawImage(qrImagePng, {
                 x: qrX,
                 y: footerY - (qrSize / 2) + 4, // Alineado visualmente con el texto
@@ -483,10 +514,10 @@ export const descargarPDF = async (
             color: rgb(0.5, 0.5, 0.5)
         })
 
-        // 4. Texto legal (CORRECCIÓN 2: Bajado a y: 15)
+        // 4. Texto legal (Abajo de todo a la izquierda)
         p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
             x: marginLeft,
-            y: 15, // <--- BAJADO
+            y: 15, // Bajado como solicitaste
             size: 7,
             font: font,
             color: rgb(0.5, 0.5, 0.5)
