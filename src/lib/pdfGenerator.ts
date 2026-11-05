@@ -2,7 +2,7 @@
 // GENERADOR DE PDF - OBRAFÁCIL
 // Este archivo se encarga de tomar todos los datos del presupuesto (ahora
 // con múltiples ítems), dibujar el documento PDF usando la librería pdf-lib,
-// y luego compartirlo o descargarlo.
+// y luego devolverlo para que App.tsx lo maneje (ver, compartir o descargar).
 // ============================================================================
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
@@ -10,7 +10,7 @@ import QRCode from 'qrcode'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
 import type { ItemCarrito } from '../types'
 
-export const descargarPDF = async (
+export const generarPDF = async (
     // 1. Datos del profesional (Nombre, CUIT, Logo, CBU, etc.)
     perfilData: any,
 
@@ -33,10 +33,7 @@ export const descargarPDF = async (
     vigenciaDias: number,
 
     // 8. Fecha de creación (para calcular el vencimiento)
-    fechaCreacionOriginal: string,
-
-    // 9. Función para mostrar el cartel verde de descarga
-    onMostrarToast: () => void
+    fechaCreacionOriginal: string
 ) => {
 
     // --- INICIALIZACIÓN DEL DOCUMENTO ---
@@ -559,7 +556,7 @@ export const descargarPDF = async (
     })
 
     // ==========================================================================
-    // 9. GENERACIÓN DEL ARCHIVO Y COMPARTIR (Lógica del mensaje de WhatsApp)
+    // 9. RETORNO DE DATOS (Para manejar desde App.tsx)
     // ==========================================================================
 
     const pdfBytes = await pdfDoc.save()
@@ -570,63 +567,17 @@ export const descargarPDF = async (
     const nombreCliente = clienteData.nombre ? clienteData.nombre.replace(/ /g, '_') : 'Cliente'
     const nombreArchivo = `Presup_${nombreCliente}_${fechaArchivo}.pdf`
 
-    // Detectamos si estamos en un celular
-    const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-
-    if (esCelular) {
-        try {
-            const file = new File([blob], nombreArchivo, { type: 'application/pdf' })
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-
-                // --- NUEVA LÓGICA PARA EL MENSAJE DE WHATSAPP ---
-
-                // 1. Extraemos los nombres de los rubros
-                const nombresRubros = itemsData.map((item: any) => item.rubro.nombre);
-                let textoRubros = '';
-
-                // 2. Formateamos la lista de rubros (Ej: "A, B y C")
-                if (nombresRubros.length === 1) {
-                    textoRubros = nombresRubros[0];
-                } else if (nombresRubros.length === 2) {
-                    textoRubros = `${nombresRubros[0]} y ${nombresRubros[1]}`;
-                } else if (nombresRubros.length > 2) {
-                    // Sacamos el último, unimos el resto con comas, y agregamos el último con "y"
-                    const ultimoRubro = nombresRubros.pop();
-                    textoRubros = `${nombresRubros.join(', ')} y ${ultimoRubro}`;
-                }
-
-                // 3. Formateamos el total calculado previamente
-                const totalFormateado = formatNumber(totalGeneral);
-
-                // 4. Armamos el texto final con tratamiento formal y sin nombre del cliente
-                const mensajeCompartir = `Cumplo en enviarle el presupuesto de ${textoRubros} por un total de $ ${totalFormateado}. Quedo a su disposición para cualquier consulta, muchas gracias!`;
-
-                // 5. Ejecutamos el menú de compartir
-                await navigator.share({
-                    files: [file],
-                    title: 'Presupuesto ObraFácil',
-                    text: mensajeCompartir
-                })
-                return // Si se compartió con éxito, terminamos acá.
-            }
-        } catch (error) {
-            console.log('El usuario canceló o falló el compartir en celular. Pasando a descarga directa...', error)
-        }
+    // Armamos el mensaje de WhatsApp (Opción B, formal)
+    const nombresRubros = itemsData.map((item: any) => item.rubro.nombre);
+    let textoRubros = '';
+    if (nombresRubros.length === 1) textoRubros = nombresRubros[0];
+    else if (nombresRubros.length === 2) textoRubros = `${nombresRubros[0]} y ${nombresRubros[1]}`;
+    else if (nombresRubros.length > 2) {
+        const ultimoRubro = nombresRubros.pop();
+        textoRubros = `${nombresRubros.join(', ')} y ${ultimoRubro}`;
     }
 
-    // FALLBACK: Si es PC o falló en celular, descargamos el archivo
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = nombreArchivo
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    const mensajeWhatsApp = `Cumplo en enviarle el presupuesto de ${textoRubros} por un total de $ ${formatNumber(totalGeneral)}. Quedo a su disposición para cualquier consulta, muchas gracias!`;
 
-    // Mostramos el cartel verde avisando de la descarga
-    if (!esCelular) {
-        onMostrarToast()
-    }
+    return { blob, nombreArchivo, mensajeWhatsApp };
 }

@@ -8,7 +8,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import { supabase } from './lib/supabaseClient'
-import { descargarPDF } from './lib/pdfGenerator'
+import { generarPDF } from './lib/pdfGenerator'
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './lib/utils'
 import { UserHeader } from './components/UserHeader'
 import { ReporteGestion } from './components/ReporteGestion'
@@ -65,6 +65,13 @@ function App() {
   const [edicionId, setEdicionId] = useState<string | null>(null)
   const [confirmarVaciar, setConfirmarVaciar] = useState(false)
   const [confirmarBorrarCuenta, setConfirmarBorrarCuenta] = useState(false)
+
+  // --- ESTADOS DE LA MODAL DE PDF ---
+  const [modalPdfAbierto, setModalPdfAbierto] = useState(false)
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfNombre, setPdfNombre] = useState<string>('')
+  const [pdfMensajeWa, setPdfMensajeWa] = useState<string>('')
 
   // --- ESTADOS DEL TUTORIAL (ONBOARDING) ---
   const [pasoTutorial, setPasoTutorial] = useState(1)
@@ -241,10 +248,8 @@ function App() {
     }
   }
 
-  // Sanitiza el input para que no acepte números negativos
   const handleInputChange = (clave: string, valor: string) => {
-    const valorSanitizado = valor.replace(/-/g, ''); // Elimina el signo menos
-    setValores(prev => ({ ...prev, [clave]: valorSanitizado }))
+    setValores(prev => ({ ...prev, [clave]: valor.replace(/-/g, '') }))
     setResultados(null)
   }
 
@@ -284,8 +289,6 @@ function App() {
         const fn = new Function(...Object.keys(nuevoContexto), `return ${formulaSegura}`)
         const resultado = fn(...Object.values(nuevoContexto))
         const resultadoFinal = typeof resultado === 'number' ? Number(resultado.toFixed(2)) : resultado
-
-        // Aseguramos que ninguna fórmula devuelva un número negativo
         resultadosCalculados[claveResultado] = Math.max(0, resultadoFinal)
         nuevoContexto[claveResultado] = Math.max(0, resultadoFinal)
       } catch (error) { console.error(error) }
@@ -321,7 +324,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 6. GENERACIÓN DE PDF Y GUARDADO
+  // 6. GENERACIÓN DE PDF Y MANEJO DE LA MODAL
   // ==========================================================================
   const generarPDFFinal = async () => {
     if (!perfil || itemsCarrito.length === 0) return;
@@ -369,18 +372,67 @@ function App() {
       }
     }
 
-    await descargarPDF(
-      perfil,
-      cliente,
-      trabajo,
-      itemsCarrito,
-      numGastos.toString(),
-      numDescuento,
-      numVigencia,
-      new Date().toISOString(),
-      () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
+    // Generamos el PDF y guardamos el resultado en el estado
+    const result = await generarPDF(
+      perfil, cliente, trabajo, itemsCarrito, numGastos.toString(), numDescuento, numVigencia, new Date().toISOString()
     );
 
+    // Creamos la URL del Blob para verlo en el navegador
+    const url = URL.createObjectURL(result.blob);
+
+    setPdfBlob(result.blob);
+    setPdfUrl(url);
+    setPdfNombre(result.nombreArchivo);
+    setPdfMensajeWa(result.mensajeWhatsApp);
+    setModalPdfAbierto(true);
+  }
+
+  // Acciones del Modal
+  const handleVerPdf = () => {
+    if (pdfUrl) window.open(pdfUrl, '_blank');
+  }
+
+  const handleCompartirPdf = async () => {
+    if (!pdfBlob) return;
+    const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (esCelular) {
+      try {
+        const file = new File([pdfBlob], pdfNombre, { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Presupuesto ObraFácil',
+            text: pdfMensajeWa
+          });
+          // No cerramos el modal automáticamente para que el usuario pueda volver a compartir si quiere
+        }
+      } catch (error) {
+        console.log('Error al compartir', error);
+      }
+    } else {
+      // Fallback para PC
+      if (pdfUrl) {
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = pdfNombre;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setToastExito("PDF descargado exitosamente.");
+      }
+    }
+  }
+
+  const cerrarModalPdf = () => {
+    setModalPdfAbierto(false);
+    // Limpiamos todo al cerrar la modal
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfBlob(null);
+    setPdfUrl(null);
+    setPdfNombre('');
+    setPdfMensajeWa('');
+    // Reseteamos el formulario
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
     setGastosGenerales(''); setDescuento('0'); setVistaCarrito(false); setVistaHistorial(false);
   }
@@ -533,6 +585,8 @@ function App() {
     if (nombres.length === 0) return 'Sin datos';
     return nombres.join(', ');
   };
+
+  const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
   // ==========================================================================
   // 8. RENDERIZADO
@@ -843,7 +897,6 @@ function App() {
   }
 
   if (vistaCarrito) {
-    // CÁLCULO EN TIEMPO REAL PARA EL RESUMEN VISUAL
     let subtotalMateriales = 0;
     itemsCarrito.forEach(item => {
       Object.entries(item.resultados).forEach(([clave, cantidad]) => {
@@ -882,6 +935,48 @@ function App() {
           </div>
         )}
 
+        {/* MODAL DE PDF (NUEVO) */}
+        {modalPdfAbierto && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={cerrarModalPdf}>
+            <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                <div style={{ backgroundColor: '#dcfce7', padding: '15px', borderRadius: '50%', color: 'var(--success)' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+              </div>
+
+              <h3 style={{ marginTop: 0, fontSize: '1.3rem', color: 'var(--text)' }}>¡Presupuesto Generado!</h3>
+              <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '25px' }}>El PDF está listo. ¿Qué querés hacer?</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* BOTÓN VER PDF */}
+                <button className="btn btn-secondary" onClick={handleVerPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                  Ver PDF
+                </button>
+
+                {/* BOTÓN COMPARTIR / DESCARGAR */}
+                {esCelular ? (
+                  <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+                    Compartir por WhatsApp
+                  </button>
+                ) : (
+                  <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+                    Descargar PDF
+                  </button>
+                )}
+
+                <button className="btn btn-secondary" onClick={cerrarModalPdf} style={{ border: 'none', color: 'var(--text-light)', marginTop: '10px' }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
@@ -911,7 +1006,6 @@ function App() {
           )}
         </div>
 
-        {/* GRILLA CORREGIDA: 4 columnas (1 Cliente + 2 Resultados + 1 Ajustes) */}
         <div className="dashboard-grid">
           <div className="panel panel-cliente" style={{ position: 'relative' }}>
             <h3>1. Datos del Cliente</h3>
@@ -950,7 +1044,6 @@ function App() {
                       <button onClick={() => eliminarDelCarrito(index)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Eliminar</button>
                     </div>
 
-                    {/* Cabecera de la tabla de materiales */}
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '5px' }}>
                       <span>Material</span>
                       <span style={{ textAlign: 'right' }}>Cant.</span>
@@ -958,7 +1051,6 @@ function App() {
                       <span style={{ textAlign: 'right' }}>Subtotal</span>
                     </div>
 
-                    {/* Filas de materiales alineadas con Grid */}
                     {Object.entries(item.resultados).map(([clave, valor]) => {
                       const costo = buscarPrecioCercano(clave, item.rubro.costos);
                       const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
@@ -978,7 +1070,6 @@ function App() {
               </div>
             )}
 
-            {/* RESUMEN VISUAL EN TIEMPO REAL */}
             {itemsCarrito.length > 0 && (
               <div style={{ marginTop: '20px', borderTop: '2px solid var(--border)', paddingTop: '15px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '5px' }}>
@@ -1003,29 +1094,15 @@ function App() {
             )}
           </div>
 
-          {/* NUEVO PANEL DE AJUSTES (Columna 4) */}
           <div className="panel panel-precios" style={{ gridColumn: 'span 1' }}>
             <h3>3. Ajustes Finales</h3>
             <div className="input-group">
               <label>Gastos Generales / Imprevistos</label>
-              <input
-                type="number"
-                value={gastosGenerales}
-                onChange={e => setGastosGenerales(e.target.value.replace(/-/g, ''))}
-                placeholder="$ 0.00"
-                min="0"
-              />
+              <input type="number" value={gastosGenerales} onChange={e => setGastosGenerales(e.target.value.replace(/-/g, ''))} placeholder="$ 0.00" min="0" />
             </div>
             <div className="input-group">
               <label>Descuento (%)</label>
-              <input
-                type="number"
-                value={descuento}
-                onChange={e => setDescuento(e.target.value.replace(/-/g, ''))}
-                placeholder="0"
-                min="0"
-                max="100"
-              />
+              <input type="number" value={descuento} onChange={e => setDescuento(e.target.value.replace(/-/g, ''))} placeholder="0" min="0" max="100" />
             </div>
           </div>
         </div>
@@ -1163,7 +1240,6 @@ function App() {
   }
 
   if (rubroSeleccionado) {
-    // Calculamos un total rápido para mostrarlo abajo de los resultados
     let totalMaterialesRubro = 0;
     if (resultados) {
       Object.entries(resultados).forEach(([clave, cantidad]) => {
@@ -1203,12 +1279,7 @@ function App() {
               <div key={atributo.clave} className="input-group">
                 <label>{atributo.etiqueta} {atributo.requerido && '*'}</label>
                 {atributo.tipo === 'numero' ? (
-                  <input
-                    type="number"
-                    value={valores[atributo.clave] || ''}
-                    onChange={e => handleInputChange(atributo.clave, e.target.value)}
-                    min="0"
-                  />
+                  <input type="number" value={valores[atributo.clave] || ''} onChange={e => handleInputChange(atributo.clave, e.target.value)} min="0" />
                 ) : (
                   <select value={valores[atributo.clave] || ''} onChange={e => handleInputChange(atributo.clave, e.target.value)}>
                     <option value="">Seleccioná...</option>
@@ -1224,23 +1295,15 @@ function App() {
             {rubroSeleccionado.costos.map(costo => (
               <div key={costo.clave} className="input-group">
                 <label>{costo.etiqueta}</label>
-                <input
-                  type="number"
-                  value={valores[costo.clave] || ''}
-                  onChange={e => handleInputChange(costo.clave, e.target.value)}
-                  placeholder="$ 0.00"
-                  min="0"
-                />
+                <input type="number" value={valores[costo.clave] || ''} onChange={e => handleInputChange(costo.clave, e.target.value)} placeholder="$ 0.00" min="0" />
               </div>
             ))}
           </div>
         </div>
 
-        {/* PANEL DE RESULTADOS VISUALES CON GRID ALINEADO */}
         {resultados && (
           <div className="panel panel-resultados" style={{ marginTop: '20px' }}>
             <h3>Materiales Calculados</h3>
-
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '5px' }}>
               <span>Material</span>
               <span style={{ textAlign: 'right' }}>Cant.</span>
@@ -1269,7 +1332,6 @@ function App() {
           </div>
         )}
 
-        {/* BOTONES CONDICIONALES CORREGIDOS */}
         <div className="pdf-action-container" style={{ maxWidth: '100%', display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '30px' }}>
           {!resultados ? (
             <button className="btn btn-primary" onClick={calcularPresupuesto} style={{ width: 'auto', padding: '12px 30px' }}>
