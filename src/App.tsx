@@ -835,6 +835,21 @@ function App() {
   }
 
   if (vistaCarrito) {
+    // CÁLCULO EN TIEMPO REAL PARA EL RESUMEN VISUAL
+    let subtotalMateriales = 0;
+    itemsCarrito.forEach(item => {
+      Object.entries(item.resultados).forEach(([clave, cantidad]) => {
+        const costo = buscarPrecioCercano(clave, item.rubro.costos);
+        const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
+        subtotalMateriales += (precioUnitario * Number(cantidad));
+      });
+    });
+    const numGastos = Number(gastosGenerales) || 0;
+    const subtotalBruto = subtotalMateriales + numGastos;
+    const numDescuento = Number(descuento) || 0;
+    const montoDescuento = subtotalBruto * (numDescuento / 100);
+    const totalFinal = subtotalBruto - montoDescuento;
+
     return (
       <div className="app-wrapper">
         {confirmarVaciar && (
@@ -918,26 +933,34 @@ function App() {
             {itemsCarrito.length === 0 ? (
               <p style={{ color: '#64748b', fontStyle: 'italic' }}>El carrito está vacío. Agregá rubros desde la pantalla anterior.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 {itemsCarrito.map((item, index) => (
-                  <div key={index} style={{ border: '1px solid #e2e8f0', padding: '10px', borderRadius: '6px', backgroundColor: '#f8fafc' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                      <strong style={{ color: 'var(--primary)' }}>{item.rubro.nombre}</strong>
-                      <button onClick={() => eliminarDelCarrito(index)} style={{ color: 'red', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>Eliminar</button>
+                  <div key={index} style={{ border: '1px solid #e2e8f0', padding: '15px', borderRadius: '8px', backgroundColor: '#f8fafc' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <strong style={{ color: 'var(--primary)', fontSize: '1.1rem' }}>{item.rubro.nombre}</strong>
+                      <button onClick={() => eliminarDelCarrito(index)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Eliminar</button>
                     </div>
+
+                    {/* Cabecera de la tabla de materiales */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '5px' }}>
+                      <span>Material</span>
+                      <span style={{ textAlign: 'right' }}>Cant.</span>
+                      <span style={{ textAlign: 'right' }}>P. Unit.</span>
+                      <span style={{ textAlign: 'right' }}>Subtotal</span>
+                    </div>
+
+                    {/* Filas de materiales alineadas con Grid */}
                     {Object.entries(item.resultados).map(([clave, valor]) => {
                       const costo = buscarPrecioCercano(clave, item.rubro.costos);
                       const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
                       const subtotal = precioUnitario * Number(valor);
 
                       return (
-                        <div key={clave} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b', marginBottom: '3px' }}>
+                        <div key={clave} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.85rem', color: 'var(--text)', padding: '4px 0', borderBottom: '1px dashed #e2e8f0' }}>
                           <span>{formatearNombreMaterial(clave)}</span>
-                          <div style={{ display: 'flex', gap: '15px', textAlign: 'right' }}>
-                            <span>{valor} u.</span>
-                            <span>${formatNumber(precioUnitario)}</span>
-                            <strong style={{ color: 'var(--text)' }}>${formatNumber(subtotal)}</strong>
-                          </div>
+                          <span style={{ textAlign: 'right', color: 'var(--text-light)' }}>{valor}</span>
+                          <span style={{ textAlign: 'right', color: 'var(--text-light)' }}>${formatNumber(precioUnitario)}</span>
+                          <strong style={{ textAlign: 'right' }}>${formatNumber(subtotal)}</strong>
                         </div>
                       )
                     })}
@@ -957,6 +980,30 @@ function App() {
                 <input type="number" value={descuento} onChange={e => setDescuento(e.target.value)} placeholder="0" min="0" max="100" />
               </div>
             </div>
+
+            {/* RESUMEN VISUAL EN TIEMPO REAL */}
+            {itemsCarrito.length > 0 && (
+              <div style={{ marginTop: '20px', borderTop: '2px solid var(--border)', paddingTop: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '5px' }}>
+                  <span>Subtotal Materiales:</span>
+                  <span>${formatNumber(subtotalMateriales)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '5px' }}>
+                  <span>Gastos Generales:</span>
+                  <span>${formatNumber(numGastos)}</span>
+                </div>
+                {numDescuento > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--danger)', marginBottom: '5px' }}>
+                    <span>Descuento ({numDescuento}%):</span>
+                    <span>-${formatNumber(montoDescuento)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.3rem', fontWeight: 'bold', color: 'var(--primary)', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--border)' }}>
+                  <span>TOTAL FINAL:</span>
+                  <span>${formatNumber(totalFinal)}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1155,39 +1202,35 @@ function App() {
           </div>
         </div>
 
-        {/* PANEL DE RESULTADOS VISUALES (NUEVO) */}
+        {/* PANEL DE RESULTADOS VISUALES CON GRID ALINEADO */}
         {resultados && (
           <div className="panel panel-resultados" style={{ marginTop: '20px' }}>
             <h3>Materiales Calculados</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-light)', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '5px' }}>
-                <span>Material</span>
-                <div style={{ display: 'flex', gap: '20px', textAlign: 'right' }}>
-                  <span style={{ width: '60px' }}>Cant.</span>
-                  <span style={{ width: '80px' }}>P. Unit.</span>
-                  <span style={{ width: '80px' }}>Subtotal</span>
-                </div>
-              </div>
-              {Object.entries(resultados).map(([clave, cantidad]) => {
-                const costo = buscarPrecioCercano(clave, rubroSeleccionado.costos);
-                const precioUnitario = costo ? Number(valores[costo.clave] || 0) : 0;
-                const subtotal = precioUnitario * Number(cantidad);
-                return (
-                  <div key={clave} className="resultado-item" style={{ borderBottom: 'none', padding: '4px 0' }}>
-                    <span style={{ flex: 1 }}>{formatearNombreMaterial(clave)}</span>
-                    <div style={{ display: 'flex', gap: '20px', textAlign: 'right', fontSize: '0.9rem' }}>
-                      <span style={{ width: '60px', color: 'var(--text-light)' }}>{cantidad} u.</span>
-                      <span style={{ width: '80px', color: 'var(--text-light)' }}>${formatNumber(precioUnitario)}</span>
-                      <strong style={{ width: '80px', color: 'var(--text)' }}>${formatNumber(subtotal)}</strong>
-                    </div>
-                  </div>
-                )
-              })}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '15px', paddingTop: '15px', borderTop: '2px solid var(--border)', gap: '20px' }}>
-                <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-light)' }}>Total Materiales:</span>
-                <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(totalMaterialesRubro)}</strong>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.75rem', color: 'var(--text-light)', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '5px' }}>
+              <span>Material</span>
+              <span style={{ textAlign: 'right' }}>Cant.</span>
+              <span style={{ textAlign: 'right' }}>P. Unit.</span>
+              <span style={{ textAlign: 'right' }}>Subtotal</span>
+            </div>
+
+            {Object.entries(resultados).map(([clave, cantidad]) => {
+              const costo = buscarPrecioCercano(clave, rubroSeleccionado.costos);
+              const precioUnitario = costo ? Number(valores[costo.clave] || 0) : 0;
+              const subtotal = precioUnitario * Number(cantidad);
+              return (
+                <div key={clave} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px', fontSize: '0.9rem', color: 'var(--text)', padding: '6px 0', borderBottom: '1px dashed #e2e8f0' }}>
+                  <span>{formatearNombreMaterial(clave)}</span>
+                  <span style={{ textAlign: 'right', color: 'var(--text-light)' }}>{cantidad} u.</span>
+                  <span style={{ textAlign: 'right', color: 'var(--text-light)' }}>${formatNumber(precioUnitario)}</span>
+                  <strong style={{ textAlign: 'right' }}>${formatNumber(subtotal)}</strong>
+                </div>
+              )
+            })}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '15px', paddingTop: '15px', borderTop: '2px solid var(--border)', gap: '20px' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-light)' }}>Total Materiales:</span>
+              <strong style={{ fontSize: '1.2rem', color: 'var(--primary)' }}>${formatNumber(totalMaterialesRubro)}</strong>
             </div>
           </div>
         )}
