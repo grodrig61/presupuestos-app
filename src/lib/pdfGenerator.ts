@@ -437,12 +437,15 @@ export const descargarPDF = async (
     const pages = pdfDoc.getPages()
     const totalPages = pages.length
 
-    // Preparamos el texto de los datos bancarios (si existen)
-    const cbuText = perfilData.cbu ? `CBU: ${perfilData.cbu}` : '';
-    const aliasText = perfilData.alias ? `Alias: ${perfilData.alias}` : '';
-    const bancoInfo = [cbuText, aliasText].filter(Boolean).join('  |  ');
+    // CORRECCIÓN 1: Lógica exclusiva (Prioridad CBU, sino Alias, sino nada)
+    let bancoInfo = '';
+    if (perfilData.cbu) {
+        bancoInfo = `CBU: ${perfilData.cbu}`;
+    } else if (perfilData.alias) {
+        bancoInfo = `Alias: ${perfilData.alias}`;
+    }
 
-    // Definimos la altura del pie de página (alineado para que el texto, el QR y el número coincidan)
+    // Definimos la altura del pie de página
     const footerY = 45;
     const qrSize = 40;
 
@@ -480,10 +483,10 @@ export const descargarPDF = async (
             color: rgb(0.5, 0.5, 0.5)
         })
 
-        // 4. Texto legal (Abajo de todo a la izquierda)
+        // 4. Texto legal (CORRECCIÓN 2: Bajado a y: 15)
         p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
             x: marginLeft,
-            y: 25,
+            y: 15, // <--- BAJADO
             size: 7,
             font: font,
             color: rgb(0.5, 0.5, 0.5)
