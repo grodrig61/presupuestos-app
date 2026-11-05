@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import QRCode from 'qrcode' // <--- NUEVA IMPORTACIÓN
 import { formatNumber, formatearNombreMaterial, buscarPrecioCercano } from './utils'
 import type { ItemCarrito } from '../types'
 
@@ -58,6 +59,26 @@ export const descargarPDF = async (
 
     // Creamos la primera página
     let { page, y } = agregarPagina()
+
+    // ==========================================================================
+    // GENERACIÓN PREVIA DEL QR (Si hay datos bancarios)
+    // ==========================================================================
+    let qrImagePng: any = null;
+    // Lógica: Prioridad al CBU, si no hay, usa el Alias.
+    const qrData = perfilData.cbu || perfilData.alias;
+
+    if (qrData) {
+        try {
+            // Generamos el código QR como Data URL (Base64)
+            const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 150 });
+            // Convertimos el Data URL a un ArrayBuffer para que pdf-lib lo pueda leer
+            const qrArrayBuffer = await fetch(qrDataUrl).then(res => res.arrayBuffer());
+            // Embebemos la imagen en el documento
+            qrImagePng = await pdfDoc.embedPng(qrArrayBuffer);
+        } catch (error) {
+            console.log('Error generando el QR', error);
+        }
+    }
 
     // ==========================================================================
     // 1. DIBUJAR EL LOGO (CON PROTECCIÓN DE TAMAÑO Y FORMATO)
@@ -409,7 +430,7 @@ export const descargarPDF = async (
     page.drawText(montoTotal, { x: colX4 - montoWidth, y: y - 2, size: 16, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
     // ==========================================================================
-    // 8. PIE DE PÁGINA GLOBAL (Texto legal, Datos Bancarios y Paginación)
+    // 8. PIE DE PÁGINA GLOBAL (Texto legal, Datos Bancarios, QR y Paginación)
     // ==========================================================================
 
     // Obtenemos todas las páginas del documento para iterar sobre ellas
@@ -424,12 +445,23 @@ export const descargarPDF = async (
     pages.forEach((p, index) => {
         // Datos Bancarios (Si el profesional los cargó)
         if (bancoInfo) {
-            p.drawText(`Datos de transferencia ${bancoInfo}`, {
+            p.drawText(`Datos de transferencia | ${bancoInfo}`, {
                 x: marginLeft,
                 y: 28,
                 size: 8,
                 font: fontBold,
                 color: rgb(0.11, 0.22, 0.54) // Azul oscuro
+            })
+        }
+
+        // DIBUJAR EL QR EN EL PIE DE PÁGINA
+        // Lo dibujamos a la derecha, encima o al lado del número de página
+        if (qrImagePng) {
+            p.drawImage(qrImagePng, {
+                x: marginRight - 50, // A 50 puntos del margen derecho
+                y: 15,               // Altura en el pie
+                width: 45,           // Ancho del QR
+                height: 45           // Alto del QR
             })
         }
 
@@ -443,12 +475,15 @@ export const descargarPDF = async (
         })
 
         // Paginación (Derecha, abajo) - "Página X de Y"
+        // Si hay QR, lo subimos un poquito o lo ponemos a la izquierda del QR para que no choquen
         const pageNumberText = `Página ${index + 1} de ${totalPages}`
         const textWidth = font.widthOfTextAtSize(pageNumberText, 8)
 
+        const pageNumY = qrImagePng ? 65 : 30; // Si hay QR, subimos el texto para que no se superponga
+
         p.drawText(pageNumberText, {
             x: marginRight - textWidth,
-            y: 30,
+            y: pageNumY,
             size: 8,
             font: fontBold,
             color: rgb(0.5, 0.5, 0.5)
