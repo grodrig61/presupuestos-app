@@ -423,9 +423,11 @@ export const descargarPDF = async (
 
         // Centramos el texto en la fila
         const textY = currentY - 13;
-        page.drawText('GASTOS GENERALES', { x: colX0 + 5, y: textY, size: 9, font: fontBold })
+        // CAMBIO APLICADO: Se quitó fontBold, ahora usa font normal
+        page.drawText('GASTOS GENERALES', { x: colX0 + 5, y: textY, size: 9, font: font })
+
         const ggSubText = `$ ${formatNumber(montoGastos)}`
-        page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y: textY, size: 9, font: fontBold, color: rgb(0.06, 0.72, 0.51) })
+        page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y: textY, size: 9, font: font, color: rgb(0.06, 0.72, 0.51) })
 
         currentY -= rowHeight;
         // Línea horizontal inferior (divisoria)
