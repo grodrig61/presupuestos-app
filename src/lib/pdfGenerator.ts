@@ -397,7 +397,7 @@ export const descargarPDF = async (
         page.drawLine({ start: { x: colX3, y: tableTopY }, end: { x: colX3, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
         page.drawLine({ start: { x: colX4, y: tableTopY }, end: { x: colX4, y: lastRowY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
-        y -= 20 // Espacio entre tablas
+        // NOTA: Acá quitamos el y -= 20 para que la caja de totales quede pegada
     }
 
     // ==========================================================================
@@ -411,28 +411,30 @@ export const descargarPDF = async (
         y = nuevaPagina.y
     }
 
-    const totalStartY = y + 10; // Guardamos la coordenada superior de la caja de totales
-    let currentY = y; // Usamos currentY para ir bajando
+    const rowHeight = 20; // Altura fija para cada fila de totales
+    const cajaStartY = y;
+    let currentY = y;
 
-    // FILA: GASTOS GENERALES
+    // FILA 1: GASTOS GENERALES (Si aplica)
     const montoGastos = Math.max(0, Number(gastos)) || 0
     if (montoGastos > 0) {
-        // Línea superior de la caja
-        page.drawLine({ start: { x: colX0, y: currentY + 12 }, end: { x: colX4, y: currentY + 12 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+        // Línea horizontal superior
+        page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
 
-        // Texto alineado a la izquierda, Monto a la derecha
-        page.drawText('GASTOS GENERALES', { x: colX0 + 5, y: currentY, size: 9, font: fontBold })
+        // Centramos el texto en la fila
+        const textY = currentY - 13;
+        page.drawText('GASTOS GENERALES', { x: colX0 + 5, y: textY, size: 9, font: fontBold })
         const ggSubText = `$ ${formatNumber(montoGastos)}`
-        page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y: currentY, size: 9, font: fontBold, color: rgb(0.06, 0.72, 0.51) })
+        page.drawText(ggSubText, { x: colX4 - font.widthOfTextAtSize(ggSubText, 9) - 5, y: textY, size: 9, font: fontBold, color: rgb(0.06, 0.72, 0.51) })
 
-        currentY -= 15
-        // Línea horizontal inferior de la fila
-        page.drawLine({ start: { x: colX0, y: currentY + 5 }, end: { x: colX4, y: currentY + 5 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+        currentY -= rowHeight;
+        // Línea horizontal inferior (divisoria)
+        page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
     }
 
     totalGeneral += montoGastos
 
-    // FILA: DESCUENTO
+    // FILA 2: DESCUENTO (Si aplica)
     let montoDescuento = 0;
     const descPorcentajeSeguro = Math.max(0, descuentoPorcentaje) || 0;
 
@@ -440,48 +442,55 @@ export const descargarPDF = async (
         montoDescuento = totalGeneral * (descPorcentajeSeguro / 100);
         totalGeneral -= montoDescuento;
 
-        // Si no hay gastos, dibujamos la línea superior de la caja acá
+        // Si no hubo gastos, dibujamos la línea superior acá
         if (montoGastos === 0) {
-            page.drawLine({ start: { x: colX0, y: currentY + 12 }, end: { x: colX4, y: currentY + 12 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+            page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
         }
 
-        page.drawText(`DESCUENTO (${descPorcentajeSeguro}%)`, { x: colX0 + 5, y: currentY, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+        // Centramos el texto en la fila
+        const textY = currentY - 13;
+        page.drawText(`DESCUENTO (${descPorcentajeSeguro}%)`, { x: colX0 + 5, y: textY, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
         const descText = `- $ ${formatNumber(montoDescuento)}`
-        page.drawText(descText, { x: colX4 - font.widthOfTextAtSize(descText, 9) - 5, y: currentY, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
+        page.drawText(descText, { x: colX4 - font.widthOfTextAtSize(descText, 9) - 5, y: textY, size: 9, font: fontBold, color: rgb(0.8, 0.2, 0.2) })
 
-        currentY -= 15
-        page.drawLine({ start: { x: colX0, y: currentY + 5 }, end: { x: colX4, y: currentY + 5 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+        currentY -= rowHeight;
+        // Línea horizontal inferior (divisoria)
+        page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
     }
 
-    // FILA: TOTAL FINAL (DESTACADO)
-    currentY -= 5 // Un poco de aire
-
-    // Si no hubo ni gastos ni descuento, dibujamos la línea superior
+    // FILA 3: TOTAL FINAL (Siempre se muestra)
+    // Si no hubo ni gastos ni descuento, dibujamos la línea superior acá
     if (montoGastos === 0 && descPorcentajeSeguro === 0) {
-        page.drawLine({ start: { x: colX0, y: currentY + 12 }, end: { x: colX4, y: currentY + 12 }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
+        page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) });
     }
+
+    // Hacemos esta fila un poco más alta para destacar el total
+    const totalRowHeight = 30;
 
     // Fondo gris para destacar el total
-    page.drawRectangle({ x: colX0, y: currentY - 10, width: colX4 - colX0, height: 25, color: rgb(0.96, 0.96, 0.96) })
+    page.drawRectangle({ x: colX0, y: currentY - totalRowHeight, width: colX4 - colX0, height: totalRowHeight, color: rgb(0.96, 0.96, 0.96) })
 
-    // Texto y monto alineados con la grilla
-    page.drawText('TOTAL ESTIMADO', { x: colX0 + 5, y: currentY, size: 12, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
+    // Texto y monto alineados
+    const totalTextY = currentY - 20;
+    page.drawText('TOTAL ESTIMADO', { x: colX0 + 5, y: totalTextY, size: 12, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
     const montoTotal = `$ ${formatNumber(totalGeneral)}`
-    page.drawText(montoTotal, { x: colX4 - font.widthOfTextAtSize(montoTotal, 14) - 5, y: currentY - 2, size: 14, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
+    page.drawText(montoTotal, { x: colX4 - font.widthOfTextAtSize(montoTotal, 14) - 5, y: totalTextY - 1, size: 14, font: fontBold, color: rgb(0.11, 0.22, 0.54) })
 
-    currentY -= 10
-    // Línea inferior final
+    currentY -= totalRowHeight;
+    // Línea inferior final de la caja
     page.drawLine({ start: { x: colX0, y: currentY }, end: { x: colX4, y: currentY }, thickness: 1, color: rgb(0.6, 0.6, 0.6) })
 
     // DIBUJAR LÍNEAS VERTICALES PARA CERRAR LA CAJA (Que parezca una tabla continua)
-    page.drawLine({ start: { x: colX0, y: totalStartY }, end: { x: colX0, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
-    page.drawLine({ start: { x: colX1, y: totalStartY }, end: { x: colX1, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
-    page.drawLine({ start: { x: colX2, y: totalStartY }, end: { x: colX2, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
-    page.drawLine({ start: { x: colX3, y: totalStartY }, end: { x: colX3, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
-    page.drawLine({ start: { x: colX4, y: totalStartY }, end: { x: colX4, y: currentY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
+    const cajaEndY = currentY;
+
+    page.drawLine({ start: { x: colX0, y: cajaStartY }, end: { x: colX0, y: cajaEndY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
+    page.drawLine({ start: { x: colX1, y: cajaStartY }, end: { x: colX1, y: cajaEndY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
+    page.drawLine({ start: { x: colX2, y: cajaStartY }, end: { x: colX2, y: cajaEndY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
+    page.drawLine({ start: { x: colX3, y: cajaStartY }, end: { x: colX3, y: cajaEndY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
+    page.drawLine({ start: { x: colX4, y: cajaStartY }, end: { x: colX4, y: cajaEndY }, thickness: 0.5, color: rgb(0.6, 0.6, 0.6) })
 
     // Actualizamos la variable y global para el pie de página
-    y = currentY;
+    y = cajaEndY;
 
     // ==========================================================================
     // 8. PIE DE PÁGINA GLOBAL (Texto legal, Datos Bancarios, QR y Paginación)
