@@ -37,15 +37,16 @@ function App() {
   const [vistaHistorial, setVistaHistorial] = useState(false)
   const [vistaPerfil, setVistaPerfil] = useState(false)
   const [vistaReporte, setVistaReporte] = useState(false)
-  const [vistaCarrito, setVistaCarrito] = useState(false) // Para ver el carrito antes de generar el PDF
+  const [vistaCarrito, setVistaCarrito] = useState(false)
 
   // --- ESTADOS DEL CARRITO ---
   const [itemsCarrito, setItemsCarrito] = useState<ItemCarrito[]>([])
-  const [edicionId, setEdicionId] = useState<string | null>(null) // Para saber si estamos editando
-  const [confirmarVaciar, setConfirmarVaciar] = useState(false) // Estado para el modal de vaciar
-
-  // --- ESTADO PARA EL MODAL DE BORRAR CUENTA ---
+  const [edicionId, setEdicionId] = useState<string | null>(null)
+  const [confirmarVaciar, setConfirmarVaciar] = useState(false)
   const [confirmarBorrarCuenta, setConfirmarBorrarCuenta] = useState(false)
+
+  // --- ESTADOS DEL TUTORIAL (ONBOARDING) ---
+  const [pasoTutorial, setPasoTutorial] = useState(1)
 
   // --- ESTADOS DEL FORMULARIO DEL CLIENTE ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
@@ -65,19 +66,14 @@ function App() {
 
   // --- ESTADOS DEL HISTORIAL ---
   const [historial, setHistorial] = useState<PresupuestoGuardado[]>([])
-  // Usamos el guion bajo para ignorar la variable de lectura y evitar el error de TypeScript
   const [, setLoadingHistorial] = useState(false)
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
-
-  // --- ESTADO PARA EL POPOVER DEL FILTRO DE ESTADO ---
   const [menuFiltroAbierto, setMenuFiltroAbierto] = useState(false)
 
   // ==========================================================================
   // 2. EFECTOS
   // ==========================================================================
-
-  // Efecto para ocultar el cartel de éxito (Toast)
   useEffect(() => {
     if (toastExito) {
       const timer = setTimeout(() => setToastExito(null), 4000)
@@ -85,7 +81,6 @@ function App() {
     }
   }, [toastExito])
 
-  // Cerrar menús al hacer clic afuera
   useEffect(() => {
     const cerrarMenus = () => {
       setMenuFiltroAbierto(false)
@@ -95,7 +90,6 @@ function App() {
     return () => document.removeEventListener('click', cerrarMenus)
   }, [])
 
-  // Verificación de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
@@ -127,7 +121,6 @@ function App() {
     });
   }
 
-  // Carga la libreta de clientes para el autocompletado
   const cargarClientes = async (userId: string) => {
     const { data } = await supabase.from('clientes').select('*').eq('usuario_id', userId)
     if (data) setClientesGuardados(data)
@@ -177,25 +170,24 @@ function App() {
     if (!session) return;
     const { error } = await supabase.from('perfiles').update({ acepto_terminos: true }).eq('id', session.user.id);
     if (!error) {
-      // Actualizamos el estado local para que la pantalla desaparezca
       setPerfil(prev => prev ? { ...prev, acepto_terminos: true } : null);
     }
   }
 
-  // Función para borrar la cuenta y todos los datos del usuario
+  const cerrarTutorial = async () => {
+    if (!session) return;
+    await supabase.from('perfiles').update({ ha_visto_tutorial: true }).eq('id', session.user.id);
+    setPerfil(prev => prev ? { ...prev, ha_visto_tutorial: true } : null);
+  }
+
   const borrarCuenta = async () => {
     if (!session) return;
-
-    // Llamamos a la función SQL que creamos en Supabase
     const { error } = await supabase.rpc('delete_user');
-
     if (error) {
       setErrorValidacion("Error al borrar la cuenta: " + error.message);
       setConfirmarBorrarCuenta(false);
       return;
     }
-
-    // Si se borró con éxito, cerramos sesión y limpiamos todo
     await supabase.auth.signOut();
     setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null);
     setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
@@ -203,7 +195,6 @@ function App() {
     setConfirmarBorrarCuenta(false);
     alert("Tu cuenta y todos tus datos han sido eliminados permanentemente.");
   }
-
 
   // ==========================================================================
   // 4. FUNCIONES DE LA APP Y CÁLCULOS
@@ -243,7 +234,6 @@ function App() {
   const calcularPresupuesto = async () => {
     if (!validarMedidas() || !rubroSeleccionado) return;
 
-    // Guardamos los precios en memoria para el usuario
     if (session) {
       try {
         const preciosAGuardar = rubroSeleccionado.costos.map(costo => {
@@ -274,32 +264,23 @@ function App() {
   // ==========================================================================
   // 5. LÓGICA DEL CARRITO Y CLIENTES
   // ==========================================================================
-
-  // Agrega el rubro actual al carrito
   const agregarAlCarrito = () => {
     if (!resultados || !rubroSeleccionado) return;
     const nuevoItem: ItemCarrito = { rubro: rubroSeleccionado, valores: { ...valores }, resultados: { ...resultados } };
     setItemsCarrito(prev => [...prev, nuevoItem]);
     setToastExito(`${rubroSeleccionado.nombre} agregado al presupuesto.`);
-
-    // Resetear el formulario del rubro
     setRubroSeleccionado(null); setResultados(null); setValores({});
   }
 
-  // Eliminar un ítem del carrito
   const eliminarDelCarrito = (index: number) => {
     setItemsCarrito(prev => prev.filter((_, i) => i !== index));
   }
 
-  // Autocompletar cliente
   const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valor = e.target.value;
     setCliente(prev => ({ ...prev, nombre: valor }));
-    if (valor.length > 1) {
-      setMostrarSugerencias(true);
-    } else {
-      setMostrarSugerencias(false);
-    }
+    if (valor.length > 1) setMostrarSugerencias(true);
+    else setMostrarSugerencias(false);
   }
 
   const seleccionarCliente = (c: Cliente) => {
@@ -308,7 +289,7 @@ function App() {
   }
 
   // ==========================================================================
-  // 6. GENERACIÓN DE PDF Y GUARDADO (El momento de la verdad)
+  // 6. GENERACIÓN DE PDF Y GUARDADO
   // ==========================================================================
   const generarPDFFinal = async () => {
     if (!perfil || itemsCarrito.length === 0) return;
@@ -316,7 +297,6 @@ function App() {
 
     const numVigencia = Number(vigenciaDias) || 15;
 
-    // Calcular total
     let totalGeneral = 0;
     itemsCarrito.forEach(item => {
       Object.entries(item.resultados).forEach(([clave, cantidad]) => {
@@ -329,29 +309,20 @@ function App() {
     if (session) {
       const datosInsert = {
         usuario_id: session.user.id,
-        rubro_id: itemsCarrito[0].rubro.id, // Guardamos el ID del primer rubro por compatibilidad
+        rubro_id: itemsCarrito[0].rubro.id,
         cliente_nombre: cliente.nombre,
-        datos_entrada: {
-          cliente,
-          trabajo,
-          items: itemsCarrito, // <--- ACÁ GUARDAMOS EL CARRITO COMPLETO
-          gastosGenerales,
-          vigenciaDias: numVigencia
-        },
+        datos_entrada: { cliente, trabajo, items: itemsCarrito, gastosGenerales, vigenciaDias: numVigencia },
         resultado_calculo: { totalGeneral },
         total: totalGeneral,
         estado: 'pendiente'
       };
 
       if (edicionId) {
-        // MODO EDICIÓN: Actualizamos el registro existente
         await supabase.from('presupuestos').update(datosInsert).eq('id', edicionId);
       } else {
-        // MODO NUEVO: Insertamos
         await supabase.from('presupuestos').insert(datosInsert);
       }
 
-      // Guardar/Actualizar Cliente en la Base de Datos
       if (cliente.nombre.trim()) {
         await supabase.from('clientes').upsert(
           { usuario_id: session.user.id, nombre: cliente.nombre, telefono: cliente.telefono, domicilio: cliente.domicilio },
@@ -365,21 +336,17 @@ function App() {
       () => setToastExito("PDF descargado. Ahora abrí WhatsApp Web y adjuntalo.")
     );
 
-    // Limpiar todo después de generar
     setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
     setGastosGenerales(''); setVistaCarrito(false); setVistaHistorial(false);
   }
 
   // ==========================================================================
-  // 7. LÓGICA DEL HISTORIAL
+  // 7. LÓGICA DEL HISTORIAL Y BACKUP CSV
   // ==========================================================================
   const irAHistorial = async () => {
     if (!session) return
     setLoadingHistorial(true); setVistaHistorial(true); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
-
-    // ORDEN DESCENDENTE (ascending: false) -> Los más nuevos primero
     const { data, error } = await supabase.from('presupuestos').select('*').eq('usuario_id', session.user.id).order('creado_en', { ascending: false });
-
     if (!error && data) setHistorial(data);
     setLoadingHistorial(false)
   }
@@ -400,7 +367,6 @@ function App() {
     await supabase.from('presupuestos').update({ estado: nuevoEstado }).eq('id', id);
   }
 
-  // Filtro básico del historial
   const historialFiltrado = useMemo(() => {
     let filtrado = [...historial];
     if (filtroCliente) filtrado = filtrado.filter(p => p.cliente_nombre.toLowerCase().includes(filtroCliente.toLowerCase()));
@@ -408,10 +374,35 @@ function App() {
     return filtrado;
   }, [historial, filtroCliente, filtroEstado]);
 
+  // Función para exportar a Excel/CSV
+  const exportarCSV = () => {
+    if (historialFiltrado.length === 0) return;
+
+    const headers = ['Fecha', 'Cliente', 'Total', 'Estado', 'Descripcion'];
+    const rows = historialFiltrado.map(p => [
+      new Date(p.creado_en).toLocaleDateString('es-AR'),
+      `"${p.cliente_nombre}"`,
+      p.total,
+      p.estado,
+      `"${p.datos_entrada?.trabajo?.descripcion || ''}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    // El \uFEFF es crucial para que Excel reconozca los acentos (á, é, í, ñ)
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Backup_Presupuestos_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   // ==========================================================================
   // 8. RENDERIZADO
   // ==========================================================================
-  if (authLoading) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando sistema...</div>
+  if (authLoading) return <div className="spinner-container"><div className="spinner"></div></div>
 
   if (!session) {
     return (
@@ -435,7 +426,6 @@ function App() {
         <div className="auth-card" style={{ position: 'relative' }}>
           {errorValidacion && <div className="error-banner" style={{ position: 'absolute', top: '-20px', right: '-20px' }}><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
-          {/* MODAL DE CONFIRMACIÓN PARA BORRAR CUENTA */}
           {confirmarBorrarCuenta && (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
@@ -467,10 +457,8 @@ function App() {
             </div>
           </form>
 
-          {/* ZONA DE PELIGRO (SOLO SI YA TIENE PERFIL) */}
           {perfil && (
             <div style={{ marginTop: '30px', borderTop: '1px solid var(--border)', paddingTop: '20px', textAlign: 'left' }}>
-
               <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '15px' }}>Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, asegurate de estar seguro.</p>
               <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', width: '100%' }} onClick={() => setConfirmarBorrarCuenta(true)}>
                 🗑️ Borrar mi cuenta permanentemente
@@ -482,7 +470,6 @@ function App() {
     )
   }
 
-  // PANTALLA DE TÉRMINOS Y CONDICIONES (Ley 25.326)
   if (perfil && perfil.acepto_terminos === false) {
     return (
       <div className="auth-container">
@@ -505,7 +492,55 @@ function App() {
     )
   }
 
-  if (loadingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Cargando datos...</div>
+  // --- PANTALLA DE ONBOARDING (TUTORIAL) ---
+  if (perfil && perfil.ha_visto_tutorial === false) {
+    return (
+      <div className="auth-container" style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)' }}>
+        <div className="auth-card" style={{ textAlign: 'center', borderTop: '5px solid var(--primary)' }}>
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '5px' }}>¡Bienvenido a Presupuestos Pro!</h2>
+          <p style={{ color: 'var(--text-light)', marginBottom: '25px' }}>Tu nuevo asistente de obras.</p>
+
+          {/* Paso 1 */}
+          {pasoTutorial === 1 && (
+            <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px' }}>💰</div>
+              <h3 style={{ margin: '0 0 10px 0' }}>Paso 1: Cargá tus precios</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '30px' }}>Entrá a cualquier rubro (como Plomería) y cargá los precios de tus materiales. La app los va a recordar para la próxima vez.</p>
+              <button className="btn btn-primary" onClick={() => setPasoTutorial(2)}>Siguiente →</button>
+            </div>
+          )}
+
+          {/* Paso 2 */}
+          {pasoTutorial === 2 && (
+            <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🧮</div>
+              <h3 style={{ margin: '0 0 10px 0' }}>Paso 2: Hacé un presupuesto</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '30px' }}>Agregá todos los rubros que necesites al carrito y generá un único PDF profesional con el total de la obra.</p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={() => setPasoTutorial(1)}>← Volver</button>
+                <button className="btn btn-primary" onClick={() => setPasoTutorial(3)}>Siguiente →</button>
+              </div>
+            </div>
+          )}
+
+          {/* Paso 3 */}
+          {pasoTutorial === 3 && (
+            <div style={{ animation: 'fadeIn 0.3s ease-in' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '15px' }}>📲</div>
+              <h3 style={{ margin: '0 0 10px 0' }}>Paso 3: Mandalo por WhatsApp</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '30px' }}>Si estás desde el celular, al generar el PDF podrás enviarlo directamente por WhatsApp con un solo toque.</p>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={() => setPasoTutorial(2)}>← Volver</button>
+                <button className="btn btn-success" onClick={cerrarTutorial}>¡Empezar a usar la App!</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (loadingData) return <div className="spinner-container"><div className="spinner"></div></div>
 
   if (vistaReporte) {
     return (
@@ -527,11 +562,9 @@ function App() {
     )
   }
 
-  // PANTALLA 3: EL CARRITO (Resumen antes de PDF)
   if (vistaCarrito) {
     return (
       <div className="app-wrapper">
-        {/* MODAL ELEGANTE PARA VACIAR CARRITO */}
         {confirmarVaciar && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
@@ -547,7 +580,7 @@ function App() {
                 <button className="btn" style={{ backgroundColor: 'var(--danger)', color: 'white', flex: 1 }} onClick={() => {
                   setItemsCarrito([]);
                   setConfirmarVaciar(false);
-                  setVistaCarrito(false); // Vuelve a Categorías (Home)
+                  setVistaCarrito(false);
                 }}>Sí, vaciar</button>
               </div>
             </div>
@@ -557,7 +590,6 @@ function App() {
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
-        {/* IMPORTANTE: El botón Volver acá NO vacía el carrito, solo cambia de vista */}
         <UserHeader
           perfil={perfil}
           onVerHistorial={irAHistorial}
@@ -575,7 +607,6 @@ function App() {
             <h1>{edicionId ? 'Editando Presupuesto' : 'Armar Presupuesto de Obra'}</h1>
             <p>Revisá los ítems antes de generar el PDF.</p>
           </div>
-          {/* Botón para vaciar el carrito */}
           {itemsCarrito.length > 0 && (
             <button className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setConfirmarVaciar(true)}>
               🗑️ Vaciar Carrito
@@ -584,13 +615,11 @@ function App() {
         </div>
 
         <div className="dashboard-grid">
-          {/* PANEL 1: DATOS DEL CLIENTE CON AUTOCOMPLETADO */}
           <div className="panel panel-cliente" style={{ position: 'relative' }}>
             <h3>1. Datos del Cliente</h3>
             <div className="input-group">
               <label>Nombre (escribí para buscar) *</label>
               <input type="text" value={cliente.nombre} onChange={handleClienteChange} onClick={(e) => e.stopPropagation()} placeholder="Ej: Juan Pérez" autoComplete="off" />
-              {/* Lista de sugerencias */}
               {mostrarSugerencias && cliente.nombre.length > 1 && (
                 <ul className="sugerencias-clientes">
                   {clientesGuardados
@@ -610,7 +639,6 @@ function App() {
             <div className="input-group"><label>Vigencia (Días)</label><input type="number" value={vigenciaDias} onChange={e => setVigenciaDias(e.target.value)} /></div>
           </div>
 
-          {/* PANEL 2: LISTA DEL CARRITO */}
           <div className="panel panel-resultados" style={{ gridColumn: 'span 2' }}>
             <h3>2. Detalle del Presupuesto</h3>
             {itemsCarrito.length === 0 ? (
@@ -641,7 +669,6 @@ function App() {
           </div>
         </div>
 
-        {/* BOTÓN DE GENERAR PDF FINAL */}
         {itemsCarrito.length > 0 && (
           <div className="pdf-action-container" style={{ maxWidth: '600px' }}>
             <button className="btn btn-success" style={{ width: '100%', padding: '15px', fontSize: '1.1rem' }} onClick={generarPDFFinal}>
@@ -653,7 +680,6 @@ function App() {
     )
   }
 
-  // PANTALLA 4: HISTORIAL CON MINI-CRM
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
@@ -671,22 +697,23 @@ function App() {
 
         <div className="page-header">
           <div><h1>Mis Presupuestos</h1></div>
-          <button className="btn btn-primary" onClick={() => { setItemsCarrito([]); setEdicionId(null); setVistaCarrito(true); }} style={{ width: 'auto' }}>
-            + Nuevo Presupuesto
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-secondary" onClick={exportarCSV} style={{ width: 'auto' }}>
+              📊 Exportar a Excel
+            </button>
+            <button className="btn btn-primary" onClick={() => { setItemsCarrito([]); setEdicionId(null); setVistaCarrito(true); }} style={{ width: 'auto' }}>
+              + Nuevo Presupuesto
+            </button>
+          </div>
         </div>
 
-        {/* BARRA DE FILTROS (CON POPOVER MODERNO) */}
         <div className="panel panel-filtros">
           <div style={{ display: 'flex', gap: '15px' }}>
-
-            {/* Filtro Buscar Cliente */}
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Buscar Cliente</label>
               <input type="text" placeholder="Nombre..." value={filtroCliente} onChange={e => setFiltroCliente(e.target.value)} />
             </div>
 
-            {/* Filtro de Estado (Popover) */}
             <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
               <label>Estado</label>
               <div className="contenedor-popover">
@@ -715,11 +742,9 @@ function App() {
                 )}
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* TARJETAS EN GRILLA (2 POR FILA RESPONSIVE) */}
         <div className="grid-rubros">
           {historialFiltrado.map(p => {
             const fechaCreacion = new Date(p.creado_en);
@@ -757,7 +782,6 @@ function App() {
     )
   }
 
-  // PANTALLA 5: FORMULARIO DE RUBRO
   if (rubroSeleccionado) {
     return (
       <div className="app-wrapper">
@@ -851,7 +875,6 @@ function App() {
     )
   }
 
-  // PANTALLA 7: HOME
   return (
     <div className="app-wrapper">
       <UserHeader

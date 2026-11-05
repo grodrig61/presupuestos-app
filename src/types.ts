@@ -45,8 +45,8 @@ export type Perfil = {
     matricula: string;
     logo_url: string;
     acepto_terminos?: boolean;
+    ha_visto_tutorial?: boolean;
 }
-
 // ============================================================================
 // NUEVOS TIPOS PARA EL MINI-CRM Y EL CARRITO
 // ============================================================================
