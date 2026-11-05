@@ -422,6 +422,17 @@ export const descargarPDF = async (
     const bancoInfo = [cbuText, aliasText].filter(Boolean).join('  |  ');
 
     pages.forEach((p, index) => {
+        // Datos Bancarios (Si el profesional los cargó)
+        if (bancoInfo) {
+            p.drawText(`Datos de transferencia ${bancoInfo}`, {
+                x: marginLeft,
+                y: 28,
+                size: 8,
+                font: fontBold,
+                color: rgb(0.11, 0.22, 0.54) // Azul oscuro
+            })
+        }
+
         // Texto legal (Izquierda, abajo)
         p.drawText('* Cálculos estimativos. Deben ser verificados por el profesional habilitado que suscribe.', {
             x: marginLeft,
@@ -430,17 +441,6 @@ export const descargarPDF = async (
             font: font,
             color: rgb(0.5, 0.5, 0.5)
         })
-
-        // Datos Bancarios (Si el profesional los cargó)
-        if (bancoInfo) {
-            p.drawText(`Datos de transferencia -> ${bancoInfo}`, {
-                x: marginLeft,
-                y: 28,
-                size: 8,
-                font: fontBold,
-                color: rgb(0.11, 0.22, 0.54) // Azul oscuro
-            })
-        }
 
         // Paginación (Derecha, abajo) - "Página X de Y"
         const pageNumberText = `Página ${index + 1} de ${totalPages}`
