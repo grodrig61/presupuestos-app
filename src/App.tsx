@@ -44,6 +44,9 @@ function App() {
   const [edicionId, setEdicionId] = useState<string | null>(null) // Para saber si estamos editando
   const [confirmarVaciar, setConfirmarVaciar] = useState(false) // Estado para el modal de vaciar
 
+  // --- ESTADO PARA EL MODAL DE BORRAR CUENTA ---
+  const [confirmarBorrarCuenta, setConfirmarBorrarCuenta] = useState(false)
+
   // --- ESTADOS DEL FORMULARIO DEL CLIENTE ---
   const [cliente, setCliente] = useState({ nombre: '', domicilio: '', telefono: '' })
   const [trabajo, setTrabajo] = useState({ descripcion: '', tareas: '' })
@@ -179,6 +182,27 @@ function App() {
     }
   }
 
+  // Función para borrar la cuenta y todos los datos del usuario
+  const borrarCuenta = async () => {
+    if (!session) return;
+
+    // Llamamos a la función SQL que creamos en Supabase
+    const { error } = await supabase.rpc('delete_user');
+
+    if (error) {
+      setErrorValidacion("Error al borrar la cuenta: " + error.message);
+      setConfirmarBorrarCuenta(false);
+      return;
+    }
+
+    // Si se borró con éxito, cerramos sesión y limpiamos todo
+    await supabase.auth.signOut();
+    setPerfil(null); setSession(null); setRubroSeleccionado(null); setFamiliaSeleccionada(null);
+    setVistaHistorial(false); setVistaPerfil(false); setVistaReporte(false); setVistaCarrito(false);
+    setEmail(''); setMensajeAuth('');
+    setConfirmarBorrarCuenta(false);
+    alert("Tu cuenta y todos tus datos han sido eliminados permanentemente.");
+  }
 
 
   // ==========================================================================
@@ -410,6 +434,26 @@ function App() {
       <div className="auth-container">
         <div className="auth-card" style={{ position: 'relative' }}>
           {errorValidacion && <div className="error-banner" style={{ position: 'absolute', top: '-20px', right: '-20px' }}><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
+
+          {/* MODAL DE CONFIRMACIÓN PARA BORRAR CUENTA */}
+          {confirmarBorrarCuenta && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                  <div style={{ backgroundColor: '#fee2e2', padding: '15px', borderRadius: '50%' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                  </div>
+                </div>
+                <h3 style={{ marginTop: 0, fontSize: '1.2rem', color: 'var(--text)' }}>¿Eliminar tu cuenta?</h3>
+                <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '25px' }}>Se borrarán TODOS tus datos, clientes y presupuestos permanentemente. Esta acción NO se puede deshacer.</p>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button className="btn btn-secondary" onClick={() => setConfirmarBorrarCuenta(false)} style={{ flex: 1 }}>Cancelar</button>
+                  <button className="btn" style={{ backgroundColor: 'var(--danger)', color: 'white', flex: 1 }} onClick={borrarCuenta}>Sí, eliminar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <h2>{perfil ? 'Editar Perfil' : 'Completá tu Perfil'}</h2>
           <form onSubmit={guardarPerfil}>
             <div className="input-group"><label>Nombre o Empresa *</label><input type="text" value={nombre} onChange={e => setNombre(e.target.value)} required /></div>
@@ -422,6 +466,17 @@ function App() {
               {perfil && <button type="button" className="btn btn-secondary" onClick={() => setVistaPerfil(false)}>Cancelar</button>}
             </div>
           </form>
+
+          {/* ZONA DE PELIGRO (SOLO SI YA TIENE PERFIL) */}
+          {perfil && (
+            <div style={{ marginTop: '30px', borderTop: '1px solid var(--border)', paddingTop: '20px', textAlign: 'left' }}>
+              <h4 style={{ color: 'var(--danger)', marginBottom: '10px', fontSize: '0.95rem' }}>Zona de Peligro</h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '15px' }}>Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, asegurate de estar seguro.</p>
+              <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', width: '100%' }} onClick={() => setConfirmarBorrarCuenta(true)}>
+                🗑️ Borrar mi cuenta permanentemente
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
