@@ -378,17 +378,74 @@ function App() {
   const exportarExcel = () => {
     if (historialFiltrado.length === 0) return;
 
-    const datosParaExcel = historialFiltrado.map(p => ({
-      'Fecha': new Date(p.creado_en).toLocaleDateString('es-AR'),
-      'Cliente': p.cliente_nombre,
-      'Monto Total': p.total,
-      'Estado': p.estado.charAt(0).toUpperCase() + p.estado.slice(1),
-      'Descripción': p.datos_entrada?.trabajo?.descripcion || ''
-    }));
+    // --- HOJA 1: RESUMEN (Un registro por presupuesto) ---
+    const resumenData = historialFiltrado.map(p => {
+      const gastos = Number(p.datos_entrada?.gastosGenerales) || 0;
+      return {
+        'ID': p.id.split('-')[0].toUpperCase(),
+        'Fecha': new Date(p.creado_en).toLocaleDateString('es-AR'),
+        'Cliente': p.cliente_nombre,
+        'Teléfono': p.datos_entrada?.cliente?.telefono || '',
+        'Domicilio': p.datos_entrada?.cliente?.domicilio || '',
+        'Materiales': p.total - gastos, // El total menos los gastos generales
+        'Gastos Grales.': gastos,
+        'Total': p.total,
+        'Estado': p.estado.charAt(0).toUpperCase() + p.estado.slice(1)
+      };
+    });
 
-    const hoja = XLSX.utils.json_to_sheet(datosParaExcel);
+    // --- HOJA 2: DETALLE (Un registro por cada material de cada rubro) ---
+    const detalleData: any[] = [];
+    historialFiltrado.forEach(p => {
+      // Recorremos los ítems del carrito de este presupuesto
+      p.datos_entrada?.items?.forEach((item: any) => {
+        // Recorremos los resultados calculados de este rubro
+        Object.entries(item.resultados).forEach(([clave, cantidad]: any) => {
+          const costo = buscarPrecioCercano(clave, item.rubro.costos);
+          const precioUnitario = costo ? Number(item.valores[costo.clave] || 0) : 0;
+          const subtotal = precioUnitario * Number(cantidad);
+
+          detalleData.push({
+            'ID Presupuesto': p.id.split('-')[0].toUpperCase(),
+            'Cliente': p.cliente_nombre,
+            'Rubro': item.rubro.nombre, // Acá se ve a qué rubro pertenece (Plomería, Pintura, etc)
+            'Material': formatearNombreMaterial(clave),
+            'Cantidad': Number(cantidad),
+            'Precio Unitario': precioUnitario,
+            'Subtotal': subtotal
+          });
+        });
+      });
+    });
+
+    // --- CREACIÓN DE LAS HOJAS ---
+    const wsResumen = XLSX.utils.json_to_sheet(resumenData);
+    const wsDetalle = XLSX.utils.json_to_sheet(detalleData);
+
+    // --- APLICAR FORMATOS (Moneda y Numérico) ---
+
+    // Formato para Resumen (Columnas F, G, H son Materiales, Gastos y Total)
+    for (let i = 2; i <= resumenData.length + 1; i++) {
+      ['F', 'G', 'H'].forEach(col => {
+        if (wsResumen[`${col}${i}`]) wsResumen[`${col}${i}`].z = '"$"#,##0.00';
+      });
+    }
+
+    // Formato para Detalle (Columna E: Cantidad con 2 decimales, F y G: Moneda)
+    for (let i = 2; i <= detalleData.length + 1; i++) {
+      if (wsDetalle[`E${i}`]) wsDetalle[`E${i}`].z = '0.00';
+      if (wsDetalle[`F${i}`]) wsDetalle[`F${i}`].z = '"$"#,##0.00';
+      if (wsDetalle[`G${i}`]) wsDetalle[`G${i}`].z = '"$"#,##0.00';
+    }
+
+    // Ajustar el ancho de las columnas para que se vea prolijo al abrir el Excel
+    wsResumen['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
+    wsDetalle['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 35 }, { wch: 12 }, { wch: 15 }, { wch: 15 }];
+
+    // --- GENERAR EL ARCHIVO ---
     const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, "Presupuestos");
+    XLSX.utils.book_append_sheet(libro, wsResumen, "Resumen");
+    XLSX.utils.book_append_sheet(libro, wsDetalle, "Detalle de Ítems");
 
     const nombreArchivo = `Backup_Presupuestos_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(libro, nombreArchivo);
