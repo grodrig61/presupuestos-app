@@ -417,8 +417,11 @@ function App() {
 
   if (!perfil || vistaPerfil) {
     return (
-      <div className="auth-container">
-        <div className="auth-card" style={{ position: 'relative' }}>
+      // <div className="auth-container">
+      <div className="auth-container" onClick={() => setVistaPerfil(false)}>
+        <div className="auth-card" style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+
+
           {errorValidacion && <div className="error-banner" style={{ position: 'absolute', top: '-20px', right: '-20px' }}><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
 
           {confirmarBorrarCuenta && (
