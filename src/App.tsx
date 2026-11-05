@@ -470,7 +470,7 @@ function App() {
           {/* ZONA DE PELIGRO (SOLO SI YA TIENE PERFIL) */}
           {perfil && (
             <div style={{ marginTop: '30px', borderTop: '1px solid var(--border)', paddingTop: '20px', textAlign: 'left' }}>
-              <h4 style={{ color: 'var(--danger)', marginBottom: '10px', fontSize: '0.95rem' }}>Zona de Peligro</h4>
+
               <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginBottom: '15px' }}>Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, asegurate de estar seguro.</p>
               <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', width: '100%' }} onClick={() => setConfirmarBorrarCuenta(true)}>
                 🗑️ Borrar mi cuenta permanentemente
