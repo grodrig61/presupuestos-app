@@ -75,6 +75,11 @@ function App() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfNombre, setPdfNombre] = useState<string>('')
   const [pdfMensajeWa, setPdfMensajeWa] = useState<string>('')
+  // Modo de la modal: 'guardado' = se acaba de generar un presupuesto nuevo/editado (resetear estado al cerrar)
+  //                    'ver'      = solo estamos previsualizando un presupuesto del historial (no tocar nada al cerrar)
+  const [modoModal, setModoModal] = useState<'guardado' | 'ver'>('guardado')
+  // ID del presupuesto cuyo PDF se está generando (para deshabilitar botones y evitar doble clic)
+  const [generandoPdfId, setGenerandoPdfId] = useState<string | null>(null)
 
   // --- ESTADOS DEL TUTORIAL (ONBOARDING) ---
   const [pasoTutorial, setPasoTutorial] = useState(1)
@@ -387,7 +392,53 @@ function App() {
     setPdfUrl(url);
     setPdfNombre(result.nombreArchivo);
     setPdfMensajeWa(result.mensajeWhatsApp);
+    // Este flujo es "guardado": al cerrar la modal se resetea el formulario y se vuelve al origen
+    setModoModal('guardado');
     setModalPdfAbierto(true);
+  }
+
+  // --- GENERAR PDF PARA VER (desde el historial) ---
+  // No re-guarda en la DB, no toca los estados del formulario, usa la fecha original del presupuesto.
+  const generarPDFParaVer = async (p: PresupuestoGuardado) => {
+    if (!perfil) return;
+    if (generandoPdfId) return; // Evita doble clic / race conditions
+
+    setErrorValidacion(null);
+    setGenerandoPdfId(p.id);
+
+    try {
+      const datosEntrada: any = p.datos_entrada || {};
+      const clienteData = datosEntrada.cliente || { nombre: p.cliente_nombre || '', domicilio: '', telefono: '' };
+      const trabajoData = datosEntrada.trabajo || { descripcion: '', tareas: '' };
+      const items = datosEntrada.items || [];
+      const gastosStr = datosEntrada.gastosGenerales ? datosEntrada.gastosGenerales.toString() : '0';
+      const descuentoNum = Math.max(0, Number(datosEntrada.descuento) || 0);
+      const vigenciaNum = Math.max(0, Number(datosEntrada.vigenciaDias) || 15);
+      // Usamos la fecha original de creación, no la de hoy, para no falsear el PDF histórico
+      const fechaOriginal = p.creado_en || new Date().toISOString();
+
+      if (items.length === 0) {
+        setErrorValidacion("Este presupuesto no tiene ítems para mostrar.");
+        return;
+      }
+
+      const result = await generarPDF(
+        perfil, clienteData, trabajoData, items, gastosStr, descuentoNum, vigenciaNum, fechaOriginal
+      );
+
+      const url = URL.createObjectURL(result.blob);
+      setPdfBlob(result.blob);
+      setPdfUrl(url);
+      setPdfNombre(result.nombreArchivo);
+      setPdfMensajeWa(result.mensajeWhatsApp);
+      // Este flujo es "ver": al cerrar la modal NO se resetea nada ni se navega
+      setModoModal('ver');
+      setModalPdfAbierto(true);
+    } catch (error: any) {
+      setErrorValidacion("Error al generar el PDF: " + (error?.message || 'desconocido'));
+    } finally {
+      setGenerandoPdfId(null);
+    }
   }
 
   // Acciones del Modal
@@ -428,16 +479,35 @@ function App() {
   }
 
   const cerrarModalPdf = () => {
+    const eraModoVer = modoModal === 'ver';
+
     setModalPdfAbierto(false);
-    // Limpiamos todo al cerrar la modal
+    setModoModal('guardado'); // Resetear para la próxima apertura
+
+    // Limpieza común del PDF
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     setPdfBlob(null);
     setPdfUrl(null);
     setPdfNombre('');
     setPdfMensajeWa('');
-    // Reseteamos el formulario
-    setItemsCarrito([]); setEdicionId(null); setCliente({ nombre: '', telefono: '', domicilio: '' }); setTrabajo({ descripcion: '', tareas: '' });
-    setGastosGenerales(''); setDescuento('0'); setVistaCarrito(false); setVistaHistorial(false);
+
+    // Si era solo una previsualización, no tocamos carrito ni navegamos: quedamos donde estábamos
+    if (eraModoVer) return;
+
+    // Modo guardado: resetear formulario y volver al origen correcto
+    setItemsCarrito([]);
+    setEdicionId(null);
+    setCliente({ nombre: '', telefono: '', domicilio: '' });
+    setTrabajo({ descripcion: '', tareas: '' });
+    setGastosGenerales('');
+    setDescuento('0');
+    setVistaCarrito(false);
+
+    // Volver al origen real: si veníamos del historial, refrescamos y mostramos historial
+    if (origenCarrito === 'historial') {
+      irAHistorial();
+    }
+    // Si origen es 'home', al apagar vistaCarrito todas las demás quedan en false → home
   }
 
   // ==========================================================================
@@ -592,6 +662,63 @@ function App() {
   };
 
   const esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+  // ==========================================================================
+  // JSX COMPARTIDO DE LA MODAL DE PDF
+  // Se renderiza tanto en vistaCarrito como en vistaHistorial, porque ahora
+  // hay dos flujos que la abren: generar un presupuesto y previsualizar uno
+  // del historial.
+  // ==========================================================================
+  const modalPdfJsx = modalPdfAbierto ? (
+    <div
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={cerrarModalPdf}
+    >
+      <div
+        style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+          <div style={{ backgroundColor: '#dcfce7', padding: '15px', borderRadius: '50%', color: 'var(--success)' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+        </div>
+
+        <h3 style={{ marginTop: 0, fontSize: '1.3rem', color: 'var(--text)' }}>
+          {modoModal === 'guardado' ? '¡Presupuesto Generado!' : 'PDF del Presupuesto'}
+        </h3>
+        <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '25px' }}>
+          {modoModal === 'guardado' ? 'El PDF está listo. ¿Qué querés hacer?' : 'Podés verlo, descargarlo o compartirlo.'}
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* BOTÓN VER PDF */}
+          <button className="btn btn-secondary" onClick={handleVerPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+            Ver PDF
+          </button>
+
+          {/* BOTÓN COMPARTIR / DESCARGAR */}
+          {esCelular ? (
+            <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+              Compartir por WhatsApp
+            </button>
+          ) : (
+            <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+              Descargar PDF
+            </button>
+          )}
+
+          <button className="btn btn-secondary" onClick={cerrarModalPdf} style={{ border: 'none', color: 'var(--text-light)', marginTop: '10px' }}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
 
   // ==========================================================================
   // 8. RENDERIZADO
@@ -940,47 +1067,8 @@ function App() {
           </div>
         )}
 
-        {/* MODAL DE PDF (NUEVO) */}
-        {modalPdfAbierto && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={cerrarModalPdf}>
-            <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-                <div style={{ backgroundColor: '#dcfce7', padding: '15px', borderRadius: '50%', color: 'var(--success)' }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                </div>
-              </div>
-
-              <h3 style={{ marginTop: 0, fontSize: '1.3rem', color: 'var(--text)' }}>¡Presupuesto Generado!</h3>
-              <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '25px' }}>El PDF está listo. ¿Qué querés hacer?</p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* BOTÓN VER PDF */}
-                <button className="btn btn-secondary" onClick={handleVerPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-                  Ver PDF
-                </button>
-
-                {/* BOTÓN COMPARTIR / DESCARGAR */}
-                {esCelular ? (
-                  <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
-                    Compartir por WhatsApp
-                  </button>
-                ) : (
-                  <button className="btn btn-success" onClick={handleCompartirPdf} style={{ padding: '12px', fontSize: '1rem', gap: '8px' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
-                    Descargar PDF
-                  </button>
-                )}
-
-                <button className="btn btn-secondary" onClick={cerrarModalPdf} style={{ border: 'none', color: 'var(--text-light)', marginTop: '10px' }}>
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* MODAL DE PDF (compartida entre vistas) */}
+        {modalPdfJsx}
 
         {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
         {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
@@ -1132,6 +1220,12 @@ function App() {
   if (vistaHistorial) {
     return (
       <div className="app-wrapper">
+        {/* MODAL DE PDF (compartida entre vistas) */}
+        {modalPdfJsx}
+
+        {toastExito && <div className="success-banner"><span>✅ {toastExito}</span><button onClick={() => setToastExito(null)}>✕</button></div>}
+        {errorValidacion && <div className="error-banner"><span>⚠️ {errorValidacion}</span><button onClick={() => setErrorValidacion(null)}>✕</button></div>}
+
         <UserHeader
           perfil={perfil}
           onVerHistorial={() => { }}
@@ -1231,7 +1325,27 @@ function App() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
                   <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>${formatNumber(p.total)}</strong>
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {/* NUEVO: Botón para ver el PDF del presupuesto guardado sin salir del historial */}
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => generarPDFParaVer(p)}
+                      disabled={generandoPdfId !== null}
+                      title="Ver PDF del presupuesto"
+                      aria-label="Ver PDF del presupuesto"
+                      style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', opacity: generandoPdfId !== null && generandoPdfId !== p.id ? 0.5 : 1 }}
+                    >
+                      {generandoPdfId === p.id ? (
+                        <span style={{ fontSize: '0.9rem' }}>⏳</span>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                      )}
+                    </button>
                     <button className="btn btn-secondary" onClick={() => editarPresupuesto(p)}>✏️ Editar</button>
                     <select
                       className={`btn-estado ${p.estado}`}
