@@ -45,6 +45,9 @@ function App() {
   const [vistaReporte, setVistaReporte] = useState(false)
   const [vistaCarrito, setVistaCarrito] = useState(false)
 
+  // --- ESTADO DE MEMORIA DE CONTEXTO (Para saber de dónde venimos) ---
+  const [origenCarrito, setOrigenCarrito] = useState<'historial' | 'home'>('home')
+
   // --- ESTADO PARA EL PANEL DE ADMIN ---
   const [vistaAdmin, setVistaAdmin] = useState(false)
   const [adminStats, setAdminStats] = useState({
@@ -456,6 +459,8 @@ function App() {
     setDescuento(p.datos_entrada.descuento ? p.datos_entrada.descuento.toString() : '0');
     setVigenciaDias(p.datos_entrada.vigenciaDias ? p.datos_entrada.vigenciaDias.toString() : '15');
     setItemsCarrito(p.datos_entrada.items || []);
+    // CORRECCIÓN: Memorizamos que venimos del historial
+    setOrigenCarrito('historial');
     setVistaHistorial(false);
     setVistaCarrito(true);
   }
@@ -987,7 +992,13 @@ function App() {
           onVerReporte={() => { setVistaReporte(true); setVistaHistorial(false); setVistaPerfil(false); setVistaCarrito(false); }}
           onLogout={handleLogout}
           mostrarBotonVolver={true}
-          onVolver={() => { setVistaCarrito(false); }}
+          // CORRECCIÓN: Ahora el volver usa la memoria de contexto
+          onVolver={() => {
+            if (origenCarrito === 'historial') {
+              setVistaHistorial(true);
+            }
+            setVistaCarrito(false);
+          }}
           itemsCount={itemsCarrito.length}
           onVerCarrito={() => setVistaCarrito(true)}
           isAdmin={perfil?.is_admin}
@@ -1155,7 +1166,10 @@ function App() {
                 setTrabajo({ descripcion: '', tareas: '' });
                 setGastosGenerales('');
                 setDescuento('0');
+                // CORRECCIÓN: Memorizamos que venimos del historial
+                setOrigenCarrito('historial');
                 setVistaHistorial(false);
+                setVistaCarrito(true);
               }}
               style={{ width: 'auto' }}
             >
